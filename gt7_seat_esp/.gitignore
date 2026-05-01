@@ -1,0 +1,7 @@
+.pio
+.vscode/*
+!.vscode/
+!.vscode/extensions.json
+
+# User config (use config.example.h as template)
+include/config.h
