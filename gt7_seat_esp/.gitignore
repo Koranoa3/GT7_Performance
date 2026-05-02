@@ -5,3 +5,4 @@
 
 # User config (use config.example.h as template)
 include/config.h
+platformio.ini

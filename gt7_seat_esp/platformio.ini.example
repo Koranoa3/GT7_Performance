@@ -7,6 +7,8 @@
 ;
 ; Please visit documentation for the other options and examples
 ; https://docs.platformio.org/page/projectconf.html
+;
+; NOTE: Rename this file to 'platformio.ini' for local configuration
 
 [env:esp32dev]
 platform = espressif32
@@ -14,7 +16,7 @@ board = esp32dev
 framework = arduino
 monitor_speed = 115200
 lib_deps =
-    fastled/FastLED 
+    fastled/FastLED
 build_flags =
     -DGT7_DEVICE_ID=1
     -DGT7_STATUS_LED_PIN=12
