@@ -13,12 +13,9 @@ from gt7_config import ESP_BAUD_RATE, ESP_RATE_LIMIT_HZ
 from gt7_protocol import (
     FrameParser,
     FrameType,
-    TelemetrySnapshot,
     build_bind_payload,
     build_frame,
     build_telemetry_payload,
-    unpack_telemetry_payload,
-    unpack_ipv4,
 )
 
 
@@ -32,8 +29,7 @@ class _LinkState:
     last_pong_at: float = 0.0
     last_seen_at: float = 0.0
     last_sent_at: float = 0.0
-    last_sent_generation: int = -1
-    last_sent_source: Optional[str] = None
+    last_sent_packet_id: int = -1
     next_seq: int = 1
     bound_ps5_ip: Optional[str] = None
     last_error: Optional[str] = None
@@ -51,13 +47,11 @@ class EspSerialManager:
         self._min_interval = 1.0 / float(rate_limit_hz)
         self._links: Dict[str, _LinkState] = {}
         self._binding_by_esp_id: Dict[int, str] = {}
-        self._pending_telemetry: Dict[str, Tuple[int, TelemetrySnapshot]] = {}
-        self._generation_by_source: Dict[str, int] = {}
+        self._pending_packets: Dict[str, Tuple[int, object]] = {}
         self._messages: Deque[str] = deque()
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
-        self._auto_discovered = False
 
     def start(self) -> None:
         with self._lock:
@@ -88,16 +82,12 @@ class EspSerialManager:
             self._messages.append(f"ESP {esp_id} に PS5 {ps5_ip} を紐づけ候補として登録しました。")
             link = self._find_link_by_esp_id_locked(int(esp_id))
             if link is not None:
-                link.last_sent_generation = -1
-                link.last_sent_source = None
                 self._send_bind_locked(link, ps5_ip)
 
     def submit_telemetry(self, ps5_ip: str, packet: object) -> None:
-        snapshot = packet if isinstance(packet, TelemetrySnapshot) else TelemetrySnapshot.from_packet(packet)
+        packet_id = int(getattr(packet, "packet_id", 0) or 0)
         with self._lock:
-            generation = self._generation_by_source.get(ps5_ip, 0) + 1
-            self._generation_by_source[ps5_ip] = generation
-            self._pending_telemetry[ps5_ip] = (generation, snapshot)
+            self._pending_packets[ps5_ip] = (packet_id, packet)
 
     def drain_messages(self) -> List[str]:
         with self._lock:
@@ -105,19 +95,10 @@ class EspSerialManager:
             self._messages.clear()
             return messages
 
-    def active_links(self) -> Dict[int, str]:
-        with self._lock:
-            result: Dict[int, str] = {}
-            for link in self._links.values():
-                if link.esp_id is not None:
-                    result[link.esp_id] = link.port_name
-            return result
-
     def _open_links_locked(self) -> None:
         port_names = list(self._requested_ports)
         if not port_names:
             port_names = [port.device for port in list_ports.comports()]
-            self._auto_discovered = True
             if not port_names:
                 self._messages.append("ESPポートが見つかりませんでした。接続後に再起動してください。")
 
@@ -145,7 +126,7 @@ class EspSerialManager:
         now = time.monotonic()
         with self._lock:
             links = list(self._links.values())
-            pending = dict(self._pending_telemetry)
+            pending = dict(self._pending_packets)
             bindings = dict(self._binding_by_esp_id)
 
         for link in links:
@@ -167,43 +148,33 @@ class EspSerialManager:
                 self._messages.append(f"{link.port_name} の読み取りに失敗しました: {exc}")
 
     def _handle_frame(self, link: _LinkState, frame, now: float) -> None:
+        frame_type, device_id, _seq, payload = frame
         link.last_seen_at = now
-        if frame.frame_type == FrameType.PING:
-            link.esp_id = frame.device_id
+        if frame_type == FrameType.PING:
+            link.esp_id = device_id
             link.last_ping_at = now
             with self._lock:
-                # Only log detection if this is the first ping or if reconnecting
-                if link.esp_id != frame.device_id or not link.bound_ps5_ip:
-                    self._messages.append(f"ESP {frame.device_id} を {link.port_name} で検出しました。")
+                if not link.bound_ps5_ip:
+                    self._messages.append(f"ESP {device_id} を {link.port_name} で検出しました。")
                 self._send_pong_locked(link)
-                binding = self._binding_by_esp_id.get(frame.device_id)
-                # Only send bind if not already bound to this IP
+                binding = self._binding_by_esp_id.get(device_id)
                 if binding is not None and link.bound_ps5_ip != binding:
                     self._send_bind_locked(link, binding)
-        elif frame.frame_type == FrameType.PONG:
+        elif frame_type == FrameType.PONG:
             link.last_pong_at = now
-            if frame.payload:
-                pass
-        elif frame.frame_type == FrameType.ACK:
+        elif frame_type == FrameType.ACK:
             link.last_pong_at = now
-            if frame.payload:
-                try:
-                    bound = unpack_ipv4(frame.payload)
-                    link.bound_ps5_ip = bound
-                    self._messages.append(f"ESP {frame.device_id} が PS5 {bound} との紐づけを受理しました。")
-                except Exception:
-                    self._messages.append(f"ESP {frame.device_id} から ACK を受信しました。")
-        elif frame.frame_type == FrameType.TELEMETRY:
-            # Silently ignore telemetry frames from ESP; they should not be received in normal operation.
-            # PC sends telemetry to ESP, not the reverse.
+            if payload:
+                self._messages.append(f"ESP {device_id} から ACK を受信しました。")
+        elif frame_type == FrameType.TELEMETRY:
             pass
         else:
-            self._messages.append(f"ESP {frame.device_id} から未知のフレーム {frame.frame_type} を受信しました。")
+            self._messages.append(f"ESP {device_id} から未知のフレーム {frame_type} を受信しました。")
 
     def _flush_link(
         self,
         link: _LinkState,
-        pending: Dict[str, Tuple[int, TelemetrySnapshot]],
+        pending: Dict[str, Tuple[int, object]],
         bindings: Dict[int, str],
         now: float,
     ) -> None:
@@ -218,21 +189,20 @@ class EspSerialManager:
         if pending_item is None:
             return
 
-        generation, snapshot = pending_item
-        if ps5_ip == link.last_sent_source and generation == link.last_sent_generation:
+        packet_id, packet = pending_item
+        if packet_id == link.last_sent_packet_id:
             return
         if link.last_sent_at and now - link.last_sent_at < self._min_interval:
             return
 
-        payload = build_telemetry_payload(snapshot)
+        payload = build_telemetry_payload(packet)
         frame = build_frame(FrameType.TELEMETRY, link.esp_id, seq=link.next_seq, payload=payload)
         link.next_seq = (link.next_seq + 1) & 0xFFFF
         try:
             link.serial_port.write(frame)
             link.serial_port.flush()
             link.last_sent_at = now
-            link.last_sent_generation = generation
-            link.last_sent_source = ps5_ip
+            link.last_sent_packet_id = packet_id
         except Exception as exc:
             with self._lock:
                 link.last_error = str(exc)
