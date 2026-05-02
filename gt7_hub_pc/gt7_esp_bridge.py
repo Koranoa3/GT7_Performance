@@ -172,10 +172,13 @@ class EspSerialManager:
             link.esp_id = frame.device_id
             link.last_ping_at = now
             with self._lock:
-                self._messages.append(f"ESP {frame.device_id} を {link.port_name} で検出しました。")
+                # Only log detection if this is the first ping or if reconnecting
+                if link.esp_id != frame.device_id or not link.bound_ps5_ip:
+                    self._messages.append(f"ESP {frame.device_id} を {link.port_name} で検出しました。")
                 self._send_pong_locked(link)
                 binding = self._binding_by_esp_id.get(frame.device_id)
-                if binding is not None:
+                # Only send bind if not already bound to this IP
+                if binding is not None and link.bound_ps5_ip != binding:
                     self._send_bind_locked(link, binding)
         elif frame.frame_type == FrameType.PONG:
             link.last_pong_at = now
@@ -191,13 +194,9 @@ class EspSerialManager:
                 except Exception:
                     self._messages.append(f"ESP {frame.device_id} から ACK を受信しました。")
         elif frame.frame_type == FrameType.TELEMETRY:
-            try:
-                snapshot = unpack_telemetry_payload(frame.payload)
-                self._messages.append(
-                    f"ESP {frame.device_id} からテレメトリ応答を受信しました: speed={snapshot.car_speed:.3f}"
-                )
-            except Exception:
-                self._messages.append(f"ESP {frame.device_id} から未解析のテレメトリ応答を受信しました。")
+            # Silently ignore telemetry frames from ESP; they should not be received in normal operation.
+            # PC sends telemetry to ESP, not the reverse.
+            pass
         else:
             self._messages.append(f"ESP {frame.device_id} から未知のフレーム {frame.frame_type} を受信しました。")
 

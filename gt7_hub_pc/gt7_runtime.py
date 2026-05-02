@@ -88,6 +88,7 @@ def run(
         esp_manager.bind(ps5_ip, esp_id)
 
     try:
+        console.start()
         esp_manager.start()
         for message in esp_manager.drain_messages():
             console.log(message)
@@ -95,18 +96,28 @@ def run(
         with TelemetryCsvWriter(output_path) as writer:
             with Listener(ip_address) as listener:
                 console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
+                last_drain_at = dt.datetime.now()
                 while True:
                     packet = listener.get()
                     if packet is None:
-                        for message in esp_manager.drain_messages():
-                            console.log(message)
+                        # drain messages every 1 second, not every packet (20Hz)
+                        now = dt.datetime.now()
+                        if (now - last_drain_at).total_seconds() >= 1.0:
+                            for message in esp_manager.drain_messages():
+                                console.log(message)
+                            last_drain_at = now
                         continue
                     writer.write_packet(packet)
                     rows_written += 1
-                    console.status_from_packet(packet)
+                    # enqueue packet for async rendering instead of blocking sync call
+                    console.enqueue_packet(packet)
                     esp_manager.submit_telemetry(ip_address, packet)
-                    for message in esp_manager.drain_messages():
-                        console.log(message)
+                    # drain messages every 1 second, not every packet
+                    now = dt.datetime.now()
+                    if (now - last_drain_at).total_seconds() >= 1.0:
+                        for message in esp_manager.drain_messages():
+                            console.log(message)
+                        last_drain_at = now
                     if rows_written == 1 or rows_written % 100 == 0:
                         console.log(f"{rows_written}行を記録しました。")
     except KeyboardInterrupt:
