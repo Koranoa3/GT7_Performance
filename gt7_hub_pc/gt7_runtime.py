@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import queue
+import threading
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -71,6 +74,68 @@ def parse_bindings(values: List[str]) -> List[Tuple[str, int]]:
     return bindings
 
 
+class TelemetryReceiver:
+    def __init__(self, listener: Listener) -> None:
+        self._listener = listener
+        self._queue: "queue.Queue[object]" = queue.Queue(maxsize=4)
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._error: Optional[Exception] = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._worker, name="gt7-telemetry-receiver", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        thread = self._thread
+        if thread and thread.is_alive():
+            thread.join(timeout=1.0)
+        self._thread = None
+
+    def get(self, timeout: float = 0.05) -> Optional[object]:
+        try:
+            return self._queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+
+    @property
+    def error(self) -> Optional[Exception]:
+        return self._error
+
+    def _worker(self) -> None:
+        try:
+            with self._listener:
+                while not self._stop_event.is_set():
+                    try:
+                        packet = self._listener.get(timeout=0.1)
+                    except TimeoutError:
+                        continue
+                    except Exception as exc:
+                        self._error = exc
+                        break
+
+                    if packet is None:
+                        continue
+
+                    try:
+                        self._queue.put_nowait(packet)
+                    except queue.Full:
+                        try:
+                            self._queue.get_nowait()
+                        except queue.Empty:
+                            pass
+                        try:
+                            self._queue.put_nowait(packet)
+                        except queue.Full:
+                            pass
+        except Exception as exc:
+            self._error = exc
+
+
 def run(
     ip_address: str,
     output_path: Path,
@@ -84,55 +149,73 @@ def run(
 
     rows_written = 0
     esp_manager = EspSerialManager(port_names=esp_ports)
+    listener = Listener(ip_address)
+    receiver = TelemetryReceiver(listener)
+    
     for ps5_ip, esp_id in bindings:
         esp_manager.bind(ps5_ip, esp_id)
 
     try:
         console.start()
         esp_manager.start()
+        receiver.start()
         for message in esp_manager.drain_messages():
             console.log(message)
 
-        with TelemetryCsvWriter(output_path) as writer:
-            with Listener(ip_address) as listener:
-                console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
-                last_drain_at = dt.datetime.now()
-                while True:
-                    packet = listener.get()
-                    if packet is None:
-                        # drain messages every 1 second, not every packet (20Hz)
-                        now = dt.datetime.now()
-                        if (now - last_drain_at).total_seconds() >= 1.0:
-                            for message in esp_manager.drain_messages():
-                                console.log(message)
-                            last_drain_at = now
-                        continue
-                    writer.write_packet(packet)
-                    rows_written += 1
-                    # enqueue packet for async rendering instead of blocking sync call
-                    console.enqueue_packet(packet)
-                    esp_manager.submit_telemetry(ip_address, packet)
-                    # drain messages every 1 second, not every packet
-                    now = dt.datetime.now()
-                    if (now - last_drain_at).total_seconds() >= 1.0:
-                        for message in esp_manager.drain_messages():
-                            console.log(message)
+        with TelemetryCsvWriter(output_path, flush_every=10) as writer:
+            console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
+            last_drain_at = time.monotonic()
+            
+            while True:
+                packet = receiver.get(timeout=0.05)
+                
+                # Check for receiver errors
+                if receiver.error is not None:
+                    raise receiver.error
+                
+                if packet is None:
+                    # No packet received; check if time to drain messages
+                    now = time.monotonic()
+                    if now - last_drain_at >= 1.0:
+                        messages = esp_manager.drain_messages()
+                        for msg in messages:
+                            console.log(msg)
                         last_drain_at = now
-                    if rows_written == 1 or rows_written % 100 == 0:
-                        console.log(f"{rows_written}行を記録しました。")
+                    continue
+
+                # Process valid packet
+                writer.write_packet(packet)
+                rows_written += 1
+                
+                # Enqueue for async console rendering (non-blocking)
+                console.enqueue_packet(packet)
+                
+                # Submit to ESP manager
+                esp_manager.submit_telemetry(ip_address, packet)
+
+                # Periodically drain messages from ESP manager (1 second interval)
+                now = time.monotonic()
+                if now - last_drain_at >= 1.0:
+                    messages = esp_manager.drain_messages()
+                    for msg in messages:
+                        console.log(msg)
+                    last_drain_at = now
+
+                # Progress log every 100 packets
+                if rows_written == 1 or rows_written % 100 == 0:
+                    console.log(f"{rows_written}行を記録しました。")
+                    
     except KeyboardInterrupt:
-        console.finish()
         console.log("")
         console.log("記録を停止しました。")
     except Exception as exc:
-        console.finish()
         print(f"実行中にエラーが発生しました: {exc}", file=sys.stderr)
-        esp_manager.stop()
         return 1
     finally:
+        console.finish()
         esp_manager.stop()
+        receiver.stop()
 
-    console.finish()
     print(f"CSV保存完了: {output_path}")
     return 0
 
