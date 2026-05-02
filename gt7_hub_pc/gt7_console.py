@@ -48,6 +48,7 @@ class LiveConsole:
             "logged_at": getattr(packet, "logged_at", ""),
             "packet_id": format_value("packet_id", getattr(packet, "packet_id", "")),
             "car_speed": getattr(packet, "car_speed", ""),
+            "throttle": getattr(packet, "throttle", ""),
             "velocity_x": safe_attr(packet, "velocity", "x"),
             "velocity_y": safe_attr(packet, "velocity", "y"),
             "velocity_z": safe_attr(packet, "velocity", "z"),

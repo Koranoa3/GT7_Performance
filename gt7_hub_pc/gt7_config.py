@@ -42,12 +42,14 @@ FLOAT_PRECISION_BY_FIELD = {
     "rpm_alert_min": 0,
     "rpm_alert_max": 0,
     "turbo_boost": 3,
+    "throttle": 0,
 }
 
 LOG_COLUMNS = [
     "logged_at",
     "packet_id",
     "car_speed",
+    "throttle",
     "velocity_x",
     "velocity_y",
     "velocity_z",
