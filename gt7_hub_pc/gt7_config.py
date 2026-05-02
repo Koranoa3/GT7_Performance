@@ -3,7 +3,6 @@ from __future__ import annotations
 CSV_COLUMNS = [
     "logged_at",
     "packet_id",
-    "received_time",
     "car_speed",
     "velocity_x",
     "velocity_y",
@@ -11,6 +10,7 @@ CSV_COLUMNS = [
     "angular_velocity_x",
     "angular_velocity_y",
     "angular_velocity_z",
+    "rotation_yaw",
     "engine_rpm",
     "rpm_alert_min",
     "rpm_alert_max",
@@ -24,7 +24,6 @@ CSV_COLUMNS = [
     "laps_in_race",
     "best_lap_time",
     "last_lap_time",
-    "rotation_yaw",
     "paused",
 ]
 
@@ -41,3 +40,17 @@ FLOAT_PRECISION_BY_FIELD = {
     "rpm_alert_max": 0,
     "turbo_boost": 3,
 }
+
+LOG_COLUMNS = [
+    "logged_at",
+    "packet_id",
+    "car_speed",
+    "velocity_x",
+    "velocity_y",
+    "velocity_z",
+    "angular_velocity_x",
+    "angular_velocity_y",
+    "angular_velocity_z",
+    "turbo_boost",
+    "current_gear",
+]

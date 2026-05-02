@@ -7,6 +7,7 @@ from pathlib import Path
 
 from granturismo.intake import Listener
 
+from gt7_console import LiveConsole
 from gt7_writer import TelemetryCsvWriter
 
 
@@ -40,30 +41,35 @@ def default_output_path() -> Path:
 
 
 def run(ip_address: str, output_path: Path) -> int:
-    print(f"接続先PS5: {ip_address}")
-    print(f"CSV出力先: {output_path}")
-    print("終了するには Ctrl+C を押してください。")
+    console = LiveConsole()
+    console.log(f"接続先PS5: {ip_address}")
+    console.log(f"CSV出力先: {output_path}")
+    console.log("終了するには Ctrl+C を押してください。")
 
     rows_written = 0
     try:
         with TelemetryCsvWriter(output_path) as writer:
             with Listener(ip_address) as listener:
-                print("PS5への接続を開始しました。テレメトリ受信を待機しています...")
+                console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
                 while True:
                     packet = listener.get()
                     if packet is None:
                         continue
                     writer.write_packet(packet)
                     rows_written += 1
+                    console.status_from_packet(packet)
                     if rows_written == 1 or rows_written % 100 == 0:
-                        print(f"{rows_written}行を記録しました。")
+                        console.log(f"{rows_written}行を記録しました。")
     except KeyboardInterrupt:
-        print()
-        print("記録を停止しました。")
+        console.finish()
+        console.log("")
+        console.log("記録を停止しました。")
     except Exception as exc:
+        console.finish()
         print(f"実行中にエラーが発生しました: {exc}", file=sys.stderr)
         return 1
 
+    console.finish()
     print(f"CSV保存完了: {output_path}")
     return 0
 

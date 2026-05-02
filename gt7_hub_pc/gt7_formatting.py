@@ -64,11 +64,23 @@ def csv_number(value: Any, digits: int) -> Any:
     return text if text else "0"
 
 
+def padded_number(value: Any, digits: int) -> str:
+    if value is None or value == "":
+        return ""
+    if isinstance(value, bool):
+        return str(int(value))
+
+    number = float(value)
+    if digits == 0:
+        return str(int(round(number)))
+
+    return f"{number:.{digits}f}"
+
+
 def packet_to_row(packet: Any) -> dict[str, Any]:
     row = {
         "logged_at": now_local_iso(),
         "packet_id": format_value("packet_id", getattr(packet, "packet_id", "")),
-        "received_time": format_value("received_time", getattr(packet, "received_time", "")),
         "car_speed": format_value("car_speed", getattr(packet, "car_speed", "")),
         "velocity_x": format_value("velocity_x", safe_attr(packet, "velocity", "x")),
         "velocity_y": format_value("velocity_y", safe_attr(packet, "velocity", "y")),
