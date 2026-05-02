@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "config.h"
+#include <FastLED.h>
 
 constexpr uint8_t kMagic0 = 'G';
 constexpr uint8_t kMagic1 = '7';
@@ -10,6 +10,17 @@ constexpr uint32_t kLinkTimeoutMs = 2500;
 constexpr uint32_t kTelemetryTimeoutMs = 2500;
 constexpr size_t kMaxPayloadSize = 96;
 constexpr size_t kMaxFrameSize = 128;
+constexpr float kSpeedFullScaleMps = 50.0f;
+constexpr uint32_t kLedRefreshIntervalMs = 50;
+
+#define DATA_PIN 26
+#define NUM_LEDS 60
+#define LED_TYPE WS2812B
+#define COLOR_ORDER GRB
+
+#ifndef GT7_DEVICE_ID
+#define GT7_DEVICE_ID 1
+#endif
 
 #ifndef GT7_STATUS_LED_PIN
 #define GT7_STATUS_LED_PIN 2
@@ -142,6 +153,7 @@ private:
 
 TelemetryState telemetry_state;
 FrameParser parser;
+CRGB leds[NUM_LEDS];
 
 uint16_t next_seq = 1;
 uint32_t last_ping_sent_ms = 0;
@@ -149,9 +161,11 @@ uint32_t last_pc_seen_ms = 0;
 uint32_t last_telemetry_rx_ms = 0;
 uint32_t last_ack_ms = 0;
 uint32_t last_status_toggle_ms = 0;
+uint32_t last_led_render_ms = 0;
 bool status_led_on = false;
 bool has_binding = false;
 char bound_ps5_ip[16] = {0};
+bool led_dirty = false;
 
 void write_u16(uint8_t *target, uint16_t value)
 {
@@ -287,6 +301,7 @@ void handle_telemetry(const Frame &frame)
   telemetry_state.cars_in_race = read_i16(30);
   telemetry_state.best_lap_time = read_i32(32);
   telemetry_state.last_lap_time = read_i32(36);
+  led_dirty = true;
 
   (void)frame;
 }
@@ -340,6 +355,41 @@ void update_status_led()
   }
 }
 
+void render_throttle_bar()
+{
+  const float ratio = constrain(telemetry_state.throttle / 255.0f, 0.0f, 1.0f);
+  const uint16_t lit_leds = static_cast<uint16_t>(ratio * NUM_LEDS + 0.5f);
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  for (uint16_t i = 0; i < lit_leds && i < NUM_LEDS; ++i)
+  {
+    const uint16_t tail = lit_leds - i;
+    if (tail <= 12)
+    {
+      leds[i] = CRGB(90, 150, 255);
+    }
+    else
+    {
+      leds[i] = CRGB::White;
+    }
+  }
+
+  FastLED.show();
+}
+
+void update_leds()
+{
+  const uint32_t now = millis();
+  if (!led_dirty && (now - last_led_render_ms) < kLedRefreshIntervalMs)
+  {
+    return;
+  }
+
+  render_throttle_bar();
+  led_dirty = false;
+  last_led_render_ms = now;
+}
+
 void poll_serial()
 {
   while (Serial.available() > 0)
@@ -371,6 +421,9 @@ void setup()
   digitalWrite(GT7_STATUS_LED_PIN, LOW);
   Serial.begin(kBaudRate);
   Serial.setTimeout(0);
+  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.setBrightness(96);
+  FastLED.clear(true);
   delay(300);
   send_ping();
   last_ping_sent_ms = millis();
@@ -380,6 +433,7 @@ void loop()
 {
   poll_serial();
   send_periodic_ping();
+  update_leds();
   update_status_led();
   delay(5);
 }
