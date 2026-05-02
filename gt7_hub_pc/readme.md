@@ -34,6 +34,14 @@ python main.py
 
 CSV は既定で `records/gt7_telemetry_YYYYMMDD_HHMMSS.csv` に保存されます。
 
+## 構成
+
+- `main.py`: 起動用の薄いエントリポイント
+- `gt7_runtime.py`: CLI、実行ループ、出力先解決
+- `gt7_writer.py`: CSV 書き込み処理
+- `gt7_formatting.py`: Telemetry を CSV 行へ整形する処理
+- `gt7_config.py`: 列定義と数値フォーマット設定
+
 ## 記録列
 
 - `logged_at`

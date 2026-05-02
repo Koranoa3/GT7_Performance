@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+CSV_COLUMNS = [
+    "logged_at",
+    "packet_id",
+    "received_time",
+    "car_speed",
+    "velocity_x",
+    "velocity_y",
+    "velocity_z",
+    "angular_velocity_x",
+    "angular_velocity_y",
+    "angular_velocity_z",
+    "engine_rpm",
+    "rpm_alert_min",
+    "rpm_alert_max",
+    "throttle",
+    "brake",
+    "turbo_boost",
+    "current_gear",
+    "in_race",
+    "cars_in_race",
+    "lap_count",
+    "laps_in_race",
+    "best_lap_time",
+    "last_lap_time",
+    "rotation_yaw",
+    "paused",
+]
+
+FLOAT_PRECISION_BY_FIELD = {
+    "car_speed": 3,
+    "velocity_x": 3,
+    "velocity_y": 3,
+    "velocity_z": 3,
+    "angular_velocity_x": 3,
+    "angular_velocity_y": 3,
+    "angular_velocity_z": 3,
+    "engine_rpm": 0,
+    "rpm_alert_min": 0,
+    "rpm_alert_max": 0,
+    "turbo_boost": 3,
+}
