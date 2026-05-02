@@ -34,6 +34,17 @@ python main.py
 
 CSV は既定で `records/gt7_telemetry_YYYYMMDD_HHMMSS.csv` に保存されます。
 
+ESP への送信を使う場合は、シリアルポートと手動紐づけを追加できます。
+
+```bash
+python main.py 192.168.0.10 --esp-port COM3 --bind 192.168.0.10:1
+```
+
+- `--esp-port` を省略すると、接続可能なシリアルポートを自動探索します
+- `--bind` は `PS5_IP:ESP_ID` 形式です
+- ESP 側は `PING` を送って自分の `ESP_ID` を知らせ、PC 側は `PONG` と `BIND` を返します
+- 連続データは 20Hz 上限で送信されます
+
 ## 構成
 
 - `main.py`: 起動用の薄いエントリポイント
@@ -41,6 +52,8 @@ CSV は既定で `records/gt7_telemetry_YYYYMMDD_HHMMSS.csv` に保存されま�
 - `gt7_writer.py`: CSV 書き込み処理
 - `gt7_formatting.py`: Telemetry を CSV 行へ整形する処理
 - `gt7_config.py`: 列定義と数値フォーマット設定
+- `gt7_protocol.py`: PC/ESP 共通のバイナリフレーム定義
+- `gt7_esp_bridge.py`: ESP とのシリアル接続、識別、紐づけ、20Hz 送信制御
 
 ## 記録列
 
