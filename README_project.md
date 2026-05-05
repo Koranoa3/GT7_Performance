@@ -10,10 +10,10 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 - Gran Turismo 7
 - PCと同一LAN内
 ### PC
-- Python 3.13
+- Python 3.8.10
 - 複数デバイスと接続し、ハブとして機能する
 - 主要ライブラリ...
-	- GT7通信 > https://pypi.org/project/granturismo/ (Python >=3.7)
+	- GT7通信 > https://pypi.org/project/granturismo/ (0.0.10)
 	- シリアル通信 > `pyserial` 
 - 簡易的なGUIをNiceGUIで実装する
 - 走行データをCSVで記録する
@@ -23,6 +23,19 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 - 固定IDをマイコンごとに設定
 - 主要ライブラリ...
 	- LEDテープ制御 > `FastLED`
+
+#### セットアップ
+
+環境固有の設定（デバイスID、LED ピンなど）はテンプレートから初期化します：
+
+```bash
+cd gt7_seat_esp/include
+cp config.h.example config.h
+cd ../..
+cp gt7_seat_esp/platformio.ini.example gt7_seat_esp/platformio.ini
+```
+
+その後、`config.h` と `platformio.ini` を必要に応じて編集します（git 追跡外）。
 
 
 ---
@@ -109,7 +122,7 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 
 ### 開発ツール
 > PS5が無くても、過去に記録した走行データをトレースして実験できるようにする。
-- [ ] 走行データをタイムスタンプ付きでDBに記録
+- [x] 走行データをタイムスタンプ付きでDBに記録
 	- 解析・分解したものを記録する必要はない　あくまでトレース用
 	  ただし、テレメトリを解析する関数をライブラリから流用できない場合、関数の実装コストが高いため解析後のデータをDBに記録してもよい
 - [ ] 走行データの記録をトレース、PS4のUDP通信時と同等の機能を持たせる
@@ -122,9 +135,9 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 	- PS5にHeartbeatを送るとテレメトリが返ってくる
 	- 注意：PS5はコース上以外（メニュー画面等）では信号を返さない
 	- ESP32からPingとともに固定IDが送られてくるので、識別しつつPong
-- [ ] PC側でPS5の走行データを取得する
+- [x] PC側でPS5の走行データを取得する
 	- 必要な情報のみ抽出して処理する
-- [ ] 走行データをCSVに記録する
+- [x] 走行データをCSVに記録する
 	- タイムスタンプ付き　上記 [[#使えそうな主要データ抜粋]] を記録する
 - [ ] ESP32に必要なデータを送信する
 	- 負荷軽減のため、Pythonの `struct.pack`を使用したバイナリプロトコル化とレート制限をかける
@@ -142,10 +155,11 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 ### デバッグデータ
 > 現時点でデバッグのために扱うテストデータ
 
-- [ ] Pythonコンソール：`car_speed`, `engine_rpm`, `velocity y&z`, 
-- [ ] 連続データ：`car_speed` (float) - meters per second
+- [x] Pythonコンソール：`car_speed`, `engine_rpm`, `velocity y&z`, 
+- [x] 連続データ：`car_speed` (float) - meters per second
 	- `clamp ( car_speed / 50.0, 0.0, 1.0 )` を全体からの割合として、LEDをその数点灯させる
 	- このケースではPCはESP32にデータをそのまま流し、ESP32がclamp処理をする
+	- FastLED で 600 LED のバー表示を実装
 - [ ] イベント：`current_gear` (int) - 0~4 が切り替わった瞬間
 	- `0:red 1:yellow 2:green 3:blue 4:cyan` でcar_speedゲージのLED色を変える
 	- このケースではPCがトリガーを検知し、ESP32にデータとともにイベントを送信する
@@ -162,4 +176,3 @@ PS5ゲーム「Gran Turismo 7」のUDP通信機能を利用して、マイコン
 
 
 ---
-
