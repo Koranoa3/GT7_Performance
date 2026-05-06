@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple
 from granturismo.intake import Listener
 
 from gt7_console import LiveConsole
+from gt7_log_trace import LogTraceListener
 from gt7_esp_bridge import EspSerialManager
 from gt7_writer import TelemetryCsvWriter
 
@@ -23,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         "ip_address",
         nargs="?",
         help="PS5のIPアドレス。未指定なら起動時に入力を求めます。",
+    )
+    parser.add_argument(
+        "--trace",
+        type=Path,
+        default=None,
+        help="records/ に保存したCSVを疑似トレース入力として使います。",
     )
     parser.add_argument(
         "--output",
@@ -123,6 +130,7 @@ class TelemetryReceiver:
 
 def run(
     ip_address: str,
+    log_trace_path: Optional[Path],
     output_path: Path,
     esp_ports: List[str],
     bindings: List[Tuple[str, int]],
@@ -134,7 +142,12 @@ def run(
 
     rows_written = 0
     esp_manager = EspSerialManager(port_names=esp_ports)
-    listener = Listener(ip_address)
+    
+    if log_trace_path is not None:
+        listener = LogTraceListener(log_trace_path)
+    else:
+        listener = Listener(ip_address)
+    
     listener.start()
     receiver = TelemetryReceiver(listener)
 
@@ -209,4 +222,4 @@ def main() -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    return run(ip_address, output_path, args.esp_port, bindings)
+    return run(ip_address, args.trace, output_path, args.esp_port, bindings)
