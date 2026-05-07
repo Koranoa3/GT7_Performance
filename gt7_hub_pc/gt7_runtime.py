@@ -6,7 +6,7 @@ import threading
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Protocol, Tuple, Any
 
 from granturismo.intake import Listener
 
@@ -14,7 +14,18 @@ from gt7_console import LiveConsole
 from gt7_log_trace import LogTraceListener
 from gt7_esp_bridge import EspSerialManager
 from gt7_protocol import EVENT_GEAR_CHANGED
-from gt7_writer import TelemetryCsvWriter
+from gt7_writer import NullTelemetrySink, TelemetryCsvSink, TelemetrySink
+
+
+class TelemetrySource(Protocol):
+    def start(self) -> None:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    def get(self, timeout: Optional[float] = None) -> Any:
+        ...
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,8 +93,8 @@ def parse_bindings(values: List[str]) -> List[Tuple[str, int]]:
 
 
 class TelemetryReceiver:
-    def __init__(self, listener: Listener) -> None:
-        self._listener = listener
+    def __init__(self, source: TelemetrySource) -> None:
+        self._source = source
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._latest: Optional[object] = None
@@ -116,7 +127,7 @@ class TelemetryReceiver:
         try:
             while not self._stop_event.is_set():
                 try:
-                    packet = self._listener.get(timeout=0.1)
+                    packet = self._source.get(timeout=0.1)
                 except TimeoutError:
                     continue
                 except Exception as exc:
@@ -129,6 +140,18 @@ class TelemetryReceiver:
             self._error = exc
 
 
+def build_telemetry_source(ip_address: str, log_trace_path: Optional[Path]) -> TelemetrySource:
+    if log_trace_path is not None:
+        return LogTraceListener(log_trace_path)
+    return Listener(ip_address)
+
+
+def build_telemetry_sink(output_path: Path, trace_mode: bool) -> TelemetrySink:
+    if trace_mode:
+        return NullTelemetrySink()
+    return TelemetryCsvSink(output_path, flush_every=10)
+
+
 def run(
     ip_address: str,
     log_trace_path: Optional[Path],
@@ -138,20 +161,19 @@ def run(
 ) -> int:
     console = LiveConsole()
     console.log(f"接続先PS5: {ip_address}")
-    console.log(f"CSV出力先: {output_path}")
+    trace_mode = log_trace_path is not None
+    if trace_mode:
+        console.log("トレース再生モード: CSV出力は行いません。")
+    else:
+        console.log(f"CSV出力先: {output_path}")
     console.log("終了するには Ctrl+C を押してください。")
 
     rows_written = 0
     esp_manager = EspSerialManager(port_names=esp_ports)
     last_gear: Optional[int] = None
-    
-    if log_trace_path is not None:
-        listener = LogTraceListener(log_trace_path)
-    else:
-        listener = Listener(ip_address)
-    
-    listener.start()
-    receiver = TelemetryReceiver(listener)
+    source = build_telemetry_source(ip_address, log_trace_path)
+    source.start()
+    receiver = TelemetryReceiver(source)
 
     for ps5_ip, esp_id in bindings:
         esp_manager.bind(ps5_ip, esp_id)
@@ -162,7 +184,7 @@ def run(
         for message in esp_manager.drain_messages():
             console.log(message)
 
-        with TelemetryCsvWriter(output_path, flush_every=10) as writer:
+        with build_telemetry_sink(output_path, trace_mode) as sink:
             console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
             last_drain_at = time.monotonic()
 
@@ -180,7 +202,7 @@ def run(
                     time.sleep(0.001)
                     continue
 
-                writer.write_packet(packet)
+                sink.write_packet(packet)
                 rows_written += 1
                 console.status_from_packet(packet)
                 gear = getattr(packet, "current_gear", None)
@@ -198,7 +220,7 @@ def run(
                         console.log(msg)
                     last_drain_at = now
 
-                if rows_written == 1 or rows_written % 100 == 0:
+                if not trace_mode and (rows_written == 1 or rows_written % 100 == 0):
                     console.log(f"{rows_written}行を記録しました。")
 
     except KeyboardInterrupt:
@@ -210,10 +232,11 @@ def run(
     finally:
         esp_manager.stop()
         receiver.stop()
-        listener.close()
+        source.close()
         console.finish()
 
-    print(f"CSV保存完了: {output_path}")
+    if not trace_mode:
+        print(f"CSV保存完了: {output_path}")
     return 0
 
 

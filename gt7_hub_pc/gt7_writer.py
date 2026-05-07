@@ -2,10 +2,23 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from gt7_config import CSV_COLUMNS
 from gt7_formatting import packet_to_row
+
+class TelemetrySink(Protocol):
+    def write_packet(self, packet: Any) -> None:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    def __enter__(self) -> "TelemetrySink":
+        ...
+
+    def __exit__(self, *_: object) -> None:
+        ...
 
 
 class TelemetryCsvWriter:
@@ -35,6 +48,37 @@ class TelemetryCsvWriter:
         self._file.close()
 
     def __enter__(self) -> "TelemetryCsvWriter":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+class TelemetryCsvSink:
+    def __init__(self, output_path: Path, flush_every: int = 10) -> None:
+        self._writer = TelemetryCsvWriter(output_path, flush_every=flush_every)
+
+    def write_packet(self, packet: Any) -> None:
+        self._writer.write_packet(packet)
+
+    def close(self) -> None:
+        self._writer.close()
+
+    def __enter__(self) -> "TelemetryCsvSink":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+class NullTelemetrySink:
+    def write_packet(self, packet: Any) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
+
+    def __enter__(self) -> "NullTelemetrySink":
         return self
 
     def __exit__(self, *_: object) -> None:
