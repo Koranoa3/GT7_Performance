@@ -7,6 +7,33 @@ from gt7_config import FLOAT_PRECISION_BY_FIELD, LOG_COLUMNS
 from gt7_formatting import format_value, padded_number, safe_attr
 
 
+class StartupConsole:
+    def __init__(self, stream: Any = None, input_func: Any = None) -> None:
+        self.stream = stream or sys.stdout
+        self.input_func = input_func or input
+
+    def write(self, message: str = "") -> None:
+        self.stream.write(message + "\n")
+        self.stream.flush()
+
+    def prompt(self, message: str) -> str:
+        return str(self.input_func(message))
+
+    def prompt_ip_address(self, current_value: str | None = None) -> str:
+        if current_value and current_value.strip():
+            return current_value.strip()
+        return self.prompt("PS5のIPアドレスを入力してください: ").strip()
+
+    def prompt_bindings(self) -> list[str]:
+        bindings: list[str] = []
+        self.write("手動紐づけを入力してください。空行で終了します。形式: PS5_IP:ESP_ID")
+        while True:
+            value = self.prompt("bind> ").strip()
+            if not value:
+                return bindings
+            bindings.append(value)
+
+
 class LiveConsole:
     def __init__(self, stream: Any = None) -> None:
         self.stream = stream or sys.stdout
