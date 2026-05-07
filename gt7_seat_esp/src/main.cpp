@@ -338,16 +338,16 @@ void update_status_led()
 {
   const uint32_t now = millis();
   const bool healthy = link_is_healthy();
-  const bool timed_out = (now - last_pc_seen_ms) > kLinkTimeoutMs;
 
   if (healthy)
   {
     digitalWrite(GT7_STATUS_LED_PIN, LOW);
     status_led_on = false;
+    last_status_toggle_ms = now; // トグル時刻もリセット
     return;
   }
 
-  if (timed_out && (now - last_status_toggle_ms) >= 250)
+  if ((now - last_status_toggle_ms) >= 250)
   {
     status_led_on = !status_led_on;
     digitalWrite(GT7_STATUS_LED_PIN, status_led_on ? HIGH : LOW);
