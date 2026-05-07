@@ -19,6 +19,9 @@ MAGIC = b"G7"
 VERSION = 1
 HEADER = struct.Struct("<2sBBBBHHH")
 TELEMETRY = struct.Struct("<ffbBB?ffffhhii")
+EVENT = struct.Struct("<BB")
+
+EVENT_GEAR_CHANGED = 1
 
 
 class FrameParser:
@@ -94,3 +97,7 @@ def build_telemetry_payload(packet: Any) -> bytes:
 
 def build_bind_payload(ps5_ip: str) -> bytes:
     return ipaddress.IPv4Address(ps5_ip).packed
+
+
+def build_event_payload(event_id: int, value: int) -> bytes:
+    return EVENT.pack(event_id & 0xFF, value & 0xFF)

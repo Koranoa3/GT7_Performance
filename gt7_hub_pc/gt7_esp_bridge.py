@@ -15,6 +15,7 @@ from gt7_protocol import (
     FrameType,
     build_bind_payload,
     build_frame,
+    build_event_payload,
     build_telemetry_payload,
 )
 
@@ -88,6 +89,13 @@ class EspSerialManager:
         packet_id = int(getattr(packet, "packet_id", 0) or 0)
         with self._lock:
             self._pending_packets[ps5_ip] = (packet_id, packet)
+
+    def submit_event(self, ps5_ip: str, event_id: int, value: int) -> None:
+        with self._lock:
+            for link in self._links.values():
+                if self._binding_by_esp_id.get(link.esp_id) != ps5_ip:
+                    continue
+                self._send_event_locked(link, event_id, value)
 
     def drain_messages(self) -> List[str]:
         with self._lock:
@@ -237,6 +245,23 @@ class EspSerialManager:
         except Exception as exc:
             link.last_error = str(exc)
             self._messages.append(f"{link.port_name} への Bind 送信に失敗しました: {exc}")
+
+    def _send_event_locked(self, link: _LinkState, event_id: int, value: int) -> None:
+        if link.esp_id is None:
+            return
+        frame = build_frame(
+            FrameType.EVENT,
+            link.esp_id,
+            seq=link.next_seq,
+            payload=build_event_payload(event_id, value),
+        )
+        link.next_seq = (link.next_seq + 1) & 0xFFFF
+        try:
+            link.serial_port.write(frame)
+            link.serial_port.flush()
+        except Exception as exc:
+            link.last_error = str(exc)
+            self._messages.append(f"{link.port_name} への Event 送信に失敗しました: {exc}")
 
     def _find_link_by_esp_id_locked(self, esp_id: int) -> Optional[_LinkState]:
         for link in self._links.values():

@@ -166,6 +166,7 @@ bool status_led_on = false;
 bool has_binding = false;
 char bound_ps5_ip[16] = {0};
 bool led_dirty = false;
+CRGB current_gear_color = CRGB::White;
 
 void write_u16(uint8_t *target, uint16_t value)
 {
@@ -258,6 +259,45 @@ void handle_bind(const Frame &frame)
   }
 }
 
+CRGB gear_to_color(uint8_t gear)
+{
+  switch (gear)
+  {
+  case 0:
+    return CRGB::Red;
+  case 1:
+    return CRGB::Yellow;
+  case 2:
+    return CRGB::Green;
+  case 3:
+    return CRGB::Blue;
+  case 4:
+    return CRGB::Cyan;
+  default:
+    return current_gear_color;
+  }
+}
+
+void handle_event(const Frame &frame)
+{
+  last_pc_seen_ms = millis();
+  if (frame.payload_len < 2)
+  {
+    return;
+  }
+
+  const uint8_t event_id = frame.payload[0];
+  const uint8_t value = frame.payload[1];
+  if (event_id != 1)
+  {
+    return;
+  }
+
+  telemetry_state.current_gear = static_cast<int8_t>(value);
+  current_gear_color = gear_to_color(value);
+  led_dirty = true;
+}
+
 void handle_telemetry(const Frame &frame)
 {
   last_pc_seen_ms = millis();
@@ -322,6 +362,9 @@ void handle_frame(const Frame &frame)
   case FrameType::Telemetry:
     handle_telemetry(frame);
     break;
+  case FrameType::Event:
+    handle_event(frame);
+    break;
   default:
     break;
   }
@@ -355,23 +398,15 @@ void update_status_led()
   }
 }
 
-void render_throttle_bar()
+void render_speed_bar()
 {
-  const float ratio = constrain(telemetry_state.throttle / 255.0f, 0.0f, 1.0f);
+  const float ratio = constrain(telemetry_state.car_speed / kSpeedFullScaleMps, 0.0f, 1.0f);
   const uint16_t lit_leds = static_cast<uint16_t>(ratio * NUM_LEDS + 0.5f);
 
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   for (uint16_t i = 0; i < lit_leds && i < NUM_LEDS; ++i)
   {
-    const uint16_t tail = lit_leds - i;
-    if (tail <= 12)
-    {
-      leds[i] = CRGB(90, 150, 255);
-    }
-    else
-    {
-      leds[i] = CRGB::White;
-    }
+    leds[i] = current_gear_color;
   }
 
   FastLED.show();
@@ -385,7 +420,7 @@ void update_leds()
     return;
   }
 
-  render_throttle_bar();
+  render_speed_bar();
   led_dirty = false;
   last_led_render_ms = now;
 }

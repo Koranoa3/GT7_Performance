@@ -139,7 +139,7 @@ cp gt7_seat_esp/platformio.ini.example gt7_seat_esp/platformio.ini
 	- 必要な情報のみ抽出して処理する
 - [x] 走行データをCSVに記録する
 	- タイムスタンプ付き　上記 [[#使えそうな主要データ抜粋]] を記録する
-- [ ] ESP32に必要なデータを送信する
+- [x] ESP32に必要なデータを送信する
 	- 負荷軽減のため、Pythonの `struct.pack`を使用したバイナリプロトコル化とレート制限をかける
 	- 必要な情報のみ　処理後のデータ/イベントを送信する
 ### ESP32
@@ -149,7 +149,7 @@ cp gt7_seat_esp/platformio.ini.example gt7_seat_esp/platformio.ini
 	- 通信異常→点滅
 	- その他の異常→点灯
 - [x] シリアル通信を確立
-- [ ] 連続データ、トリガーイベント両方キャッチする
+- [x] 連続データ、トリガーイベント両方キャッチする
 - [x] FastLEDで動作チェック
 
 ### デバッグデータ
@@ -160,7 +160,7 @@ cp gt7_seat_esp/platformio.ini.example gt7_seat_esp/platformio.ini
 	- `clamp ( car_speed / 50.0, 0.0, 1.0 )` を全体からの割合として、LEDをその数点灯させる
 	- このケースではPCはESP32にデータをそのまま流し、ESP32がclamp処理をする
 	- FastLED で 600 LED のバー表示を実装
-- [ ] イベント：`current_gear` (int) - 0~4 が切り替わった瞬間
+- [x] イベント：`current_gear` (int) - 0~4 が切り替わった瞬間
 	- `0:red 1:yellow 2:green 3:blue 4:cyan` でcar_speedゲージのLED色を変える
 	- このケースではPCがトリガーを検知し、ESP32にデータとともにイベントを送信する
 

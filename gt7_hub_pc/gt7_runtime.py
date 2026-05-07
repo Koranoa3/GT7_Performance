@@ -13,6 +13,7 @@ from granturismo.intake import Listener
 from gt7_console import LiveConsole
 from gt7_log_trace import LogTraceListener
 from gt7_esp_bridge import EspSerialManager
+from gt7_protocol import EVENT_GEAR_CHANGED
 from gt7_writer import TelemetryCsvWriter
 
 
@@ -142,6 +143,7 @@ def run(
 
     rows_written = 0
     esp_manager = EspSerialManager(port_names=esp_ports)
+    last_gear: Optional[int] = None
     
     if log_trace_path is not None:
         listener = LogTraceListener(log_trace_path)
@@ -181,6 +183,13 @@ def run(
                 writer.write_packet(packet)
                 rows_written += 1
                 console.status_from_packet(packet)
+                gear = getattr(packet, "current_gear", None)
+                if gear is not None:
+                    gear = int(gear)
+                    if 0 <= gear <= 4:
+                        if last_gear is None or gear != last_gear:
+                            esp_manager.submit_event(ip_address, EVENT_GEAR_CHANGED, gear)
+                        last_gear = gear
                 esp_manager.submit_telemetry(ip_address, packet)
 
                 now = time.monotonic()
