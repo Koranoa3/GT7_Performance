@@ -10,6 +10,7 @@ import serial
 from serial.tools import list_ports
 
 from gt7_config import ESP_BAUD_RATE, ESP_RATE_LIMIT_HZ
+from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot
 from gt7_protocol import (
     FrameParser,
     FrameType,
@@ -49,7 +50,7 @@ class EspSerialManager:
         self._min_interval = 1.0 / float(rate_limit_hz)
         self._links: Dict[str, _LinkState] = {}
         self._binding_by_esp_id: Dict[int, str] = {}
-        self._pending_packets: Dict[str, Tuple[int, object]] = {}
+        self._pending_packets: Dict[str, Tuple[int, TelemetrySnapshot]] = {}
         self._messages: Deque[str] = deque()
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -87,10 +88,10 @@ class EspSerialManager:
             if link is not None:
                 self._send_bind_locked(link, ps5_ip)
 
-    def submit_telemetry(self, ps5_ip: str, packet: object) -> None:
-        packet_id = int(getattr(packet, "packet_id", 0) or 0)
+    def submit_telemetry(self, ps5_ip: str, snapshot: TelemetrySnapshot) -> None:
+        packet_id = int(snapshot.get("packet_id", 0) or 0)
         with self._lock:
-            self._pending_packets[ps5_ip] = (packet_id, packet)
+            self._pending_packets[ps5_ip] = (packet_id, snapshot)
 
     def submit_event(self, ps5_ip: str, event_id: int, value: int) -> None:
         with self._lock:
@@ -190,7 +191,7 @@ class EspSerialManager:
     def _flush_link(
         self,
         link: _LinkState,
-        pending: Dict[str, Tuple[int, object]],
+        pending: Dict[str, Tuple[int, TelemetrySnapshot]],
         bindings: Dict[int, str],
         now: float,
     ) -> None:
@@ -205,13 +206,13 @@ class EspSerialManager:
         if pending_item is None:
             return
 
-        packet_id, packet = pending_item
+        packet_id, snapshot = pending_item
         if packet_id == link.last_sent_packet_id:
             return
         if link.last_sent_at and now - link.last_sent_at < self._min_interval:
             return
 
-        payload = build_telemetry_payload(packet)
+        payload = build_telemetry_payload(TELEMETRY_LAYOUT.build_esp_values(snapshot))
         frame = build_frame(FrameType.TELEMETRY, link.esp_id, seq=link.next_seq, payload=payload)
         link.next_seq = (link.next_seq + 1) & 0xFFFF
         try:

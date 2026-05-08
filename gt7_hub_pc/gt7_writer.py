@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
-from gt7_config import CSV_COLUMNS
-from gt7_formatting import packet_to_row
+from gt7_formatting import CSV_TARGET, TELEMETRY_LAYOUT, TelemetrySnapshot
 
 class TelemetrySink(Protocol):
-    def write_packet(self, packet: Any) -> None:
+    def write_snapshot(self, snapshot: TelemetrySnapshot) -> None:
         ...
 
     def close(self) -> None:
@@ -29,13 +28,13 @@ class TelemetryCsvWriter:
         self.flush_every = flush_every
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         self._file = self.output_path.open("w", newline="", encoding="utf-8")
-        self._writer = csv.DictWriter(self._file, fieldnames=CSV_COLUMNS)
+        self._writer = csv.DictWriter(self._file, fieldnames=TELEMETRY_LAYOUT.field_names(CSV_TARGET))
         self._writer.writeheader()
         self._file.flush()
         self._rows_since_flush = 0
 
-    def write_packet(self, packet: Any) -> None:
-        self._writer.writerow(packet_to_row(packet))
+    def write_snapshot(self, snapshot: TelemetrySnapshot) -> None:
+        self._writer.writerow(TELEMETRY_LAYOUT.build_csv_row(snapshot))
         self._rows_since_flush += 1
         if self._rows_since_flush >= self.flush_every:
             self._file.flush()
@@ -58,8 +57,8 @@ class TelemetryCsvSink:
     def __init__(self, output_path: Path, flush_every: int = 10) -> None:
         self._writer = TelemetryCsvWriter(output_path, flush_every=flush_every)
 
-    def write_packet(self, packet: Any) -> None:
-        self._writer.write_packet(packet)
+    def write_snapshot(self, snapshot: TelemetrySnapshot) -> None:
+        self._writer.write_snapshot(snapshot)
 
     def close(self) -> None:
         self._writer.close()
@@ -72,7 +71,7 @@ class TelemetryCsvSink:
 
 
 class NullTelemetrySink:
-    def write_packet(self, packet: Any) -> None:
+    def write_snapshot(self, snapshot: TelemetrySnapshot) -> None:
         return None
 
     def close(self) -> None:

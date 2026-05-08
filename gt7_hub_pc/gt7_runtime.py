@@ -10,6 +10,7 @@ from granturismo.intake import Listener
 
 from gt7_console import LiveConsole
 from gt7_esp_bridge import EspSerialManager
+from gt7_formatting import TELEMETRY_LAYOUT, TelemetryWarning
 from gt7_log_trace import LogTraceListener
 from gt7_protocol import EVENT_GEAR_CHANGED
 from gt7_startup import RuntimeLaunchConfig, load_runtime_config
@@ -87,6 +88,18 @@ def build_telemetry_sink(output_path: Path, trace_mode: bool) -> TelemetrySink:
     return TelemetryCsvSink(output_path, flush_every=10)
 
 
+def log_snapshot_warnings(
+    console: LiveConsole,
+    warnings: tuple[TelemetryWarning, ...],
+    seen_keys: set[tuple[str, str, tuple[str, ...]]],
+) -> None:
+    for warning in warnings:
+        if warning.dedupe_key in seen_keys:
+            continue
+        console.log(f"警告: {warning.message()}")
+        seen_keys.add(warning.dedupe_key)
+
+
 def run(config: RuntimeLaunchConfig) -> int:
     console = LiveConsole()
     console.log(f"接続先PS5: {config.ip_address}")
@@ -97,6 +110,7 @@ def run(config: RuntimeLaunchConfig) -> int:
     console.log("終了するには Ctrl+C を押してください。")
 
     rows_written = 0
+    warning_keys: set[tuple[str, str, tuple[str, ...]]] = set()
     esp_manager = EspSerialManager(port_names=config.esp_ports, auto_bind_ps5_ip=(config.ip_address if config.auto_bind else None))
     last_gear: Optional[int] = None
     source = build_telemetry_source(config.ip_address, config.log_trace_path)
@@ -130,17 +144,19 @@ def run(config: RuntimeLaunchConfig) -> int:
                     time.sleep(0.001)
                     continue
 
-                sink.write_packet(packet)
+                snapshot = TELEMETRY_LAYOUT.resolve_packet(packet)
+                log_snapshot_warnings(console, snapshot.warnings, warning_keys)
+                sink.write_snapshot(snapshot)
                 rows_written += 1
-                console.status_from_packet(packet)
-                gear = getattr(packet, "current_gear", None)
+                console.status_from_snapshot(snapshot)
+                gear = snapshot.get("current_gear")
                 if gear is not None:
                     gear = int(gear)
                     if 0 <= gear <= 4:
                         if last_gear is None or gear != last_gear:
                             esp_manager.submit_event(config.ip_address, EVENT_GEAR_CHANGED, gear)
                         last_gear = gear
-                esp_manager.submit_telemetry(config.ip_address, packet)
+                esp_manager.submit_telemetry(config.ip_address, snapshot)
 
                 now = time.monotonic()
                 if now - last_drain_at >= 1.0:

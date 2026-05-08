@@ -3,7 +3,7 @@ from __future__ import annotations
 import ipaddress
 import struct
 from enum import IntEnum
-from typing import Any, List
+from typing import Any, List, Mapping
 
 
 class FrameType(IntEnum):
@@ -59,39 +59,32 @@ def build_frame(frame_type: FrameType, device_id: int, seq: int = 0, payload: by
     return HEADER.pack(MAGIC, VERSION, int(frame_type), 0, 0, seq & 0xFFFF, device_id & 0xFFFF, len(payload)) + payload
 
 
-def _float(packet: Any, name: str, default: float = 0.0) -> float:
-    value = getattr(packet, name, default)
+def _float(values: Mapping[str, Any], name: str, default: float = 0.0) -> float:
+    value = values.get(name, default)
     return default if value is None else float(value)
 
 
-def _int(packet: Any, name: str, default: int = 0) -> int:
-    value = getattr(packet, name, default)
+def _int(values: Mapping[str, Any], name: str, default: int = 0) -> int:
+    value = values.get(name, default)
     return default if value in (None, "") else int(value)
 
 
-def _nested_float(packet: Any, group: str, name: str) -> float:
-    nested = getattr(packet, group, None)
-    value = getattr(nested, name, 0.0)
-    return 0.0 if value is None else float(value)
-
-
-def build_telemetry_payload(packet: Any) -> bytes:
-    flags = getattr(packet, "flags", None)
+def build_telemetry_payload(values: Mapping[str, Any]) -> bytes:
     return TELEMETRY.pack(
-        _float(packet, "car_speed"),
-        _float(packet, "engine_rpm"),
-        _int(packet, "current_gear", -1),
-        _int(packet, "throttle"),
-        _int(packet, "brake"),
-        bool(getattr(flags, "in_race", False)),
-        _float(packet, "turbo_boost"),
-        _nested_float(packet, "velocity", "x"),
-        _nested_float(packet, "velocity", "y"),
-        _nested_float(packet, "velocity", "z"),
-        _int(packet, "lap_count", -1),
-        _int(packet, "cars_in_race", -1),
-        _int(packet, "best_lap_time", -1),
-        _int(packet, "last_lap_time", -1),
+        _float(values, "car_speed"),
+        _float(values, "engine_rpm"),
+        _int(values, "current_gear", -1),
+        _int(values, "throttle"),
+        _int(values, "brake"),
+        bool(values.get("in_race", False)),
+        _float(values, "turbo_boost"),
+        _float(values, "velocity_x"),
+        _float(values, "velocity_y"),
+        _float(values, "velocity_z"),
+        _int(values, "lap_count", -1),
+        _int(values, "cars_in_race", -1),
+        _int(values, "best_lap_time", -1),
+        _int(values, "last_lap_time", -1),
     )
 
 
