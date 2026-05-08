@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot
+from gt7_formatting import CONSOLE_TARGET, TELEMETRY_LAYOUT, TelemetrySnapshot
 
 
 class StartupConsole:
@@ -37,33 +37,47 @@ class LiveConsole:
     def __init__(self, stream: Any = None) -> None:
         self.stream = stream or sys.stdout
         self.enabled = bool(getattr(self.stream, "isatty", lambda: False)())
+        self._title_text = " | ".join(TELEMETRY_LAYOUT.field_names(CONSOLE_TARGET))
         self._status_text = ""
+        self._status_visible = False
 
     def _write(self, text: str) -> None:
         self.stream.write(text)
         self.stream.flush()
 
-    def _clear_status_line(self) -> None:
-        if self.enabled and self._status_text:
-            self._write("\r\x1b[2K")
+    def _clear_status_block(self) -> None:
+        if self.enabled and self._status_visible:
+            self._write("\r\x1b[2K\x1b[1A\r\x1b[2K\r")
+            self._status_visible = False
+
+    def _render_status_block(self) -> None:
+        if not self.enabled or not self._status_text:
+            return
+        if self._status_visible:
+            self._write("\r\x1b[1A")
+            self._write(self._title_text + "\x1b[K\n")
+            self._write(self._status_text + "\x1b[K")
+            return
+        self._write(self._title_text + "\n" + self._status_text + "\x1b[K")
+        self._status_visible = True
 
     def log(self, message: str = "") -> None:
-        self._clear_status_line()
+        self._clear_status_block()
         self._write(message + "\n")
         if self._status_text:
-            self._write("\r\x1b[2K" + self._status_text)
+            self._render_status_block()
 
     def status(self, text: str) -> None:
         if not self.enabled:
             return
 
         self._status_text = text
-        self._write("\r\x1b[2K" + text)
+        self._render_status_block()
 
     def status_from_snapshot(self, snapshot: TelemetrySnapshot) -> None:
         values = TELEMETRY_LAYOUT.build_console_values(snapshot)
         self.status(" | ".join(values))
 
     def finish(self) -> None:
-        self._clear_status_line()
+        self._clear_status_block()
         self._status_text = ""
