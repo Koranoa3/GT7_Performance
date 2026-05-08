@@ -16,6 +16,7 @@ class RuntimeLaunchConfig:
     output_path: Path
     esp_ports: list[str]
     bindings: list[tuple[str, int]]
+    auto_bind: bool
 
     @property
     def trace_mode(self) -> bool:
@@ -71,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="起動時に対話形式で複数バインドを入力します。",
     )
+    parser.add_argument(
+        "--auto-bind",
+        action="store_true",
+        help="検出したESPとPS5のIPが分かり次第自動でバインドします。`--interactive-bind`より優先されます。",
+    )
     return parser
 
 
@@ -104,8 +110,13 @@ def parse_bindings(values: Iterable[str]) -> list[tuple[str, int]]:
 def resolve_bindings(
     cli_binding_groups: Sequence[Sequence[str]],
     interactive_bind: bool,
+    auto_bind: bool,
     console: StartupConsole,
 ) -> list[tuple[str, int]]:
+    # auto_bind が有効な場合は自動バインドに委ねる（明示指定のバインドは不要）
+    if auto_bind:
+        return []
+
     raw_bindings = flatten_cli_values(cli_binding_groups)
     if interactive_bind:
         raw_bindings.extend(console.prompt_bindings())
@@ -124,7 +135,9 @@ def load_runtime_config(
     if not ip_address:
         raise ValueError("IPアドレスが空です。")
 
-    bindings = resolve_bindings(args.binding_groups, args.interactive_bind, startup_console)
+    bindings = resolve_bindings(
+        args.binding_groups, args.interactive_bind, args.auto_bind, startup_console
+    )
     output_path = args.output or default_output_path()
     esp_ports = flatten_cli_values(args.esp_ports)
 
@@ -134,4 +147,5 @@ def load_runtime_config(
         output_path=output_path,
         esp_ports=esp_ports,
         bindings=bindings,
+        auto_bind=args.auto_bind,
     )

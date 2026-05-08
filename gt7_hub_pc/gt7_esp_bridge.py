@@ -42,6 +42,7 @@ class EspSerialManager:
         port_names: Optional[Iterable[str]] = None,
         baudrate: int = ESP_BAUD_RATE,
         rate_limit_hz: float = ESP_RATE_LIMIT_HZ,
+        auto_bind_ps5_ip: Optional[str] = None,
     ) -> None:
         self._requested_ports = list(port_names or [])
         self._baudrate = baudrate
@@ -53,6 +54,7 @@ class EspSerialManager:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._auto_bind_ps5_ip = auto_bind_ps5_ip
 
     def start(self) -> None:
         with self._lock:
@@ -165,7 +167,13 @@ class EspSerialManager:
                 if not link.bound_ps5_ip:
                     self._messages.append(f"ESP {device_id} を {link.port_name} で検出しました。")
                 self._send_pong_locked(link)
+                # 自動バインドが指定されていれば、登録されているバインディングがなくても自動で設定する
                 binding = self._binding_by_esp_id.get(device_id)
+                if binding is None and self._auto_bind_ps5_ip is not None:
+                    self._binding_by_esp_id[int(device_id)] = self._auto_bind_ps5_ip
+                    binding = self._auto_bind_ps5_ip
+                    self._messages.append(f"ESP {device_id} を自動的に PS5 {self._auto_bind_ps5_ip} に紐づけます。")
+
                 if binding is not None and link.bound_ps5_ip != binding:
                     self._send_bind_locked(link, binding)
         elif frame_type == FrameType.PONG:

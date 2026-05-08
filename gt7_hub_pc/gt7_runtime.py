@@ -97,7 +97,7 @@ def run(config: RuntimeLaunchConfig) -> int:
     console.log("終了するには Ctrl+C を押してください。")
 
     rows_written = 0
-    esp_manager = EspSerialManager(port_names=config.esp_ports)
+    esp_manager = EspSerialManager(port_names=config.esp_ports, auto_bind_ps5_ip=(config.ip_address if config.auto_bind else None))
     last_gear: Optional[int] = None
     source = build_telemetry_source(config.ip_address, config.log_trace_path)
     source.start()
