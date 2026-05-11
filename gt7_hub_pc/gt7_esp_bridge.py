@@ -10,11 +10,13 @@ import serial
 from serial.tools import list_ports
 
 from gt7_config import ESP_BAUD_RATE, ESP_RATE_LIMIT_HZ
+from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot
 from gt7_protocol import (
     FrameParser,
     FrameType,
     build_bind_payload,
     build_frame,
+    build_event_payload,
     build_telemetry_payload,
 )
 
@@ -41,17 +43,19 @@ class EspSerialManager:
         port_names: Optional[Iterable[str]] = None,
         baudrate: int = ESP_BAUD_RATE,
         rate_limit_hz: float = ESP_RATE_LIMIT_HZ,
+        auto_bind_ps5_ip: Optional[str] = None,
     ) -> None:
         self._requested_ports = list(port_names or [])
         self._baudrate = baudrate
         self._min_interval = 1.0 / float(rate_limit_hz)
         self._links: Dict[str, _LinkState] = {}
         self._binding_by_esp_id: Dict[int, str] = {}
-        self._pending_packets: Dict[str, Tuple[int, object]] = {}
+        self._pending_packets: Dict[str, Tuple[int, TelemetrySnapshot]] = {}
         self._messages: Deque[str] = deque()
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._auto_bind_ps5_ip = auto_bind_ps5_ip
 
     def start(self) -> None:
         with self._lock:
@@ -84,10 +88,17 @@ class EspSerialManager:
             if link is not None:
                 self._send_bind_locked(link, ps5_ip)
 
-    def submit_telemetry(self, ps5_ip: str, packet: object) -> None:
-        packet_id = int(getattr(packet, "packet_id", 0) or 0)
+    def submit_telemetry(self, ps5_ip: str, snapshot: TelemetrySnapshot) -> None:
+        packet_id = int(snapshot.get("packet_id", 0) or 0)
         with self._lock:
-            self._pending_packets[ps5_ip] = (packet_id, packet)
+            self._pending_packets[ps5_ip] = (packet_id, snapshot)
+
+    def submit_event(self, ps5_ip: str, event_id: int, value: int) -> None:
+        with self._lock:
+            for link in self._links.values():
+                if self._binding_by_esp_id.get(link.esp_id) != ps5_ip:
+                    continue
+                self._send_event_locked(link, event_id, value)
 
     def drain_messages(self) -> List[str]:
         with self._lock:
@@ -157,7 +168,13 @@ class EspSerialManager:
                 if not link.bound_ps5_ip:
                     self._messages.append(f"ESP {device_id} を {link.port_name} で検出しました。")
                 self._send_pong_locked(link)
+                # 自動バインドが指定されていれば、登録されているバインディングがなくても自動で設定する
                 binding = self._binding_by_esp_id.get(device_id)
+                if binding is None and self._auto_bind_ps5_ip is not None:
+                    self._binding_by_esp_id[int(device_id)] = self._auto_bind_ps5_ip
+                    binding = self._auto_bind_ps5_ip
+                    self._messages.append(f"ESP {device_id} を自動的に PS5 {self._auto_bind_ps5_ip} に紐づけます。")
+
                 if binding is not None and link.bound_ps5_ip != binding:
                     self._send_bind_locked(link, binding)
         elif frame_type == FrameType.PONG:
@@ -174,7 +191,7 @@ class EspSerialManager:
     def _flush_link(
         self,
         link: _LinkState,
-        pending: Dict[str, Tuple[int, object]],
+        pending: Dict[str, Tuple[int, TelemetrySnapshot]],
         bindings: Dict[int, str],
         now: float,
     ) -> None:
@@ -189,13 +206,13 @@ class EspSerialManager:
         if pending_item is None:
             return
 
-        packet_id, packet = pending_item
+        packet_id, snapshot = pending_item
         if packet_id == link.last_sent_packet_id:
             return
         if link.last_sent_at and now - link.last_sent_at < self._min_interval:
             return
 
-        payload = build_telemetry_payload(packet)
+        payload = build_telemetry_payload(TELEMETRY_LAYOUT.build_esp_values(snapshot))
         frame = build_frame(FrameType.TELEMETRY, link.esp_id, seq=link.next_seq, payload=payload)
         link.next_seq = (link.next_seq + 1) & 0xFFFF
         try:
@@ -237,6 +254,23 @@ class EspSerialManager:
         except Exception as exc:
             link.last_error = str(exc)
             self._messages.append(f"{link.port_name} への Bind 送信に失敗しました: {exc}")
+
+    def _send_event_locked(self, link: _LinkState, event_id: int, value: int) -> None:
+        if link.esp_id is None:
+            return
+        frame = build_frame(
+            FrameType.EVENT,
+            link.esp_id,
+            seq=link.next_seq,
+            payload=build_event_payload(event_id, value),
+        )
+        link.next_seq = (link.next_seq + 1) & 0xFFFF
+        try:
+            link.serial_port.write(frame)
+            link.serial_port.flush()
+        except Exception as exc:
+            link.last_error = str(exc)
+            self._messages.append(f"{link.port_name} への Event 送信に失敗しました: {exc}")
 
     def _find_link_by_esp_id_locked(self, esp_id: int) -> Optional[_LinkState]:
         for link in self._links.values():

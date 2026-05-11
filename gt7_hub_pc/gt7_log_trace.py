@@ -33,6 +33,7 @@ class TraceFlags:
     in_race: bool = False
     paused: bool = False
     loading_or_processing: bool = False
+    car_on_track: bool = False
 
 
 @dataclass
@@ -41,6 +42,7 @@ class TracePacket:
     logged_at: str
     car_speed: Optional[float]
     velocity: TraceVector3
+    orientation: Optional[float]
     angular_velocity: TraceVector3
     rotation: TraceRotation
     engine_rpm: Optional[float]
@@ -128,6 +130,7 @@ class LogTraceListener:
                 y=self._to_float(row.get("velocity_y")),
                 z=self._to_float(row.get("velocity_z")),
             ),
+            orientation=self._to_float(row.get("orientation")),
             angular_velocity=TraceVector3(
                 x=self._to_float(row.get("angular_velocity_x")),
                 y=self._to_float(row.get("angular_velocity_y")),
@@ -147,6 +150,7 @@ class LogTraceListener:
                 in_race=self._to_bool(row.get("in_race")),
                 paused=self._to_bool(row.get("paused")),
                 loading_or_processing=False,
+                car_on_track=self._to_bool(row.get("car_on_track")),
             ),
             cars_in_race=self._to_int(row.get("cars_in_race")),
             lap_count=self._to_int(row.get("lap_count")),

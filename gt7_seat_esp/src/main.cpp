@@ -10,8 +10,13 @@ constexpr uint32_t kLinkTimeoutMs = 2500;
 constexpr uint32_t kTelemetryTimeoutMs = 2500;
 constexpr size_t kMaxPayloadSize = 96;
 constexpr size_t kMaxFrameSize = 128;
-constexpr float kSpeedFullScaleMps = 50.0f;
+constexpr float kSpeedFullScaleMps = 30.0f;
 constexpr uint32_t kLedRefreshIntervalMs = 50;
+constexpr uint8_t kSpeedPwmPin = 32;
+constexpr uint8_t kSpeedPwmChannel = 0;
+constexpr uint32_t kSpeedPwmFrequencyHz = 5000;
+constexpr uint8_t kSpeedPwmResolutionBits = 8;
+constexpr uint8_t kSpeedPwmMaxDuty = (1u << kSpeedPwmResolutionBits) - 1u;
 
 #define DATA_PIN 26
 #define NUM_LEDS 60
@@ -166,6 +171,7 @@ bool status_led_on = false;
 bool has_binding = false;
 char bound_ps5_ip[16] = {0};
 bool led_dirty = false;
+CRGB current_gear_color = CRGB::White;
 
 void write_u16(uint8_t *target, uint16_t value)
 {
@@ -258,6 +264,45 @@ void handle_bind(const Frame &frame)
   }
 }
 
+CRGB gear_to_color(uint8_t gear)
+{
+  switch (gear)
+  {
+  case 0:
+    return CRGB::Red;
+  case 1:
+    return CRGB::Yellow;
+  case 2:
+    return CRGB::Green;
+  case 3:
+    return CRGB::Blue;
+  case 4:
+    return CRGB::Cyan;
+  default:
+    return current_gear_color;
+  }
+}
+
+void handle_event(const Frame &frame)
+{
+  last_pc_seen_ms = millis();
+  if (frame.payload_len < 2)
+  {
+    return;
+  }
+
+  const uint8_t event_id = frame.payload[0];
+  const uint8_t value = frame.payload[1];
+  if (event_id != 1)
+  {
+    return;
+  }
+
+  telemetry_state.current_gear = static_cast<int8_t>(value);
+  current_gear_color = gear_to_color(value);
+  led_dirty = true;
+}
+
 void handle_telemetry(const Frame &frame)
 {
   last_pc_seen_ms = millis();
@@ -301,6 +346,9 @@ void handle_telemetry(const Frame &frame)
   telemetry_state.cars_in_race = read_i16(30);
   telemetry_state.best_lap_time = read_i32(32);
   telemetry_state.last_lap_time = read_i32(36);
+  const float speed_ratio = constrain(telemetry_state.car_speed / kSpeedFullScaleMps, 0.0f, 1.0f);
+  const uint8_t pwm_duty = static_cast<uint8_t>(speed_ratio * kSpeedPwmMaxDuty + 0.5f);
+  ledcWrite(kSpeedPwmChannel, pwm_duty);
   led_dirty = true;
 
   (void)frame;
@@ -321,6 +369,9 @@ void handle_frame(const Frame &frame)
     break;
   case FrameType::Telemetry:
     handle_telemetry(frame);
+    break;
+  case FrameType::Event:
+    handle_event(frame);
     break;
   default:
     break;
@@ -355,23 +406,15 @@ void update_status_led()
   }
 }
 
-void render_throttle_bar()
+void render_speed_bar()
 {
-  const float ratio = constrain(telemetry_state.throttle / 255.0f, 0.0f, 1.0f);
+  const float ratio = constrain(telemetry_state.car_speed / kSpeedFullScaleMps, 0.0f, 1.0f);
   const uint16_t lit_leds = static_cast<uint16_t>(ratio * NUM_LEDS + 0.5f);
 
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   for (uint16_t i = 0; i < lit_leds && i < NUM_LEDS; ++i)
   {
-    const uint16_t tail = lit_leds - i;
-    if (tail <= 12)
-    {
-      leds[i] = CRGB(90, 150, 255);
-    }
-    else
-    {
-      leds[i] = CRGB::White;
-    }
+    leds[i] = current_gear_color;
   }
 
   FastLED.show();
@@ -385,7 +428,7 @@ void update_leds()
     return;
   }
 
-  render_throttle_bar();
+  render_speed_bar();
   led_dirty = false;
   last_led_render_ms = now;
 }
@@ -419,6 +462,10 @@ void setup()
 {
   pinMode(GT7_STATUS_LED_PIN, OUTPUT);
   digitalWrite(GT7_STATUS_LED_PIN, LOW);
+  pinMode(kSpeedPwmPin, OUTPUT);
+  ledcSetup(kSpeedPwmChannel, kSpeedPwmFrequencyHz, kSpeedPwmResolutionBits);
+  ledcAttachPin(kSpeedPwmPin, kSpeedPwmChannel);
+  ledcWrite(kSpeedPwmChannel, 0);
   Serial.begin(kBaudRate);
   Serial.setTimeout(0);
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
