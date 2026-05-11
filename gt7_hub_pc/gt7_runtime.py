@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
@@ -10,9 +11,16 @@ from granturismo.intake import Listener
 
 from gt7_console import LiveConsole
 from gt7_esp_bridge import EspSerialManager
-from gt7_formatting import TELEMETRY_LAYOUT, TelemetryWarning
+from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot, TelemetryWarning
 from gt7_log_trace import LogTraceListener
-from gt7_protocol import EVENT_GEAR_CHANGED
+from gt7_protocol import (
+    EVENT_COLLISION,
+    EVENT_LAP,
+    LAP_EVENT_FINISH,
+    LAP_EVENT_PASS,
+    LAP_EVENT_PREPARE,
+    LAP_EVENT_START,
+)
 from gt7_startup import RuntimeLaunchConfig, load_runtime_config
 from gt7_writer import NullTelemetrySink, TelemetryCsvSink, TelemetrySink
 
@@ -100,6 +108,88 @@ def log_snapshot_warnings(
         seen_keys.add(warning.dedupe_key)
 
 
+class EspTelemetryDirector:
+    def __init__(self) -> None:
+        self._recent_speeds: deque[tuple[float, float]] = deque(maxlen=16)
+        self._last_lap_count: Optional[int] = None
+        self._last_collision_at = 0.0
+        self.play_state = 0
+
+    def update(self, snapshot: TelemetrySnapshot, now: float) -> list[tuple[int, int]]:
+        self.play_state = self._resolve_play_state(snapshot)
+        events: list[tuple[int, int]] = []
+
+        if self.play_state == 1:
+            if self._collision_detected(snapshot, now):
+                events.append((EVENT_COLLISION, 0))
+            lap_event = self._lap_event(snapshot)
+            if lap_event is not None:
+                events.append((EVENT_LAP, lap_event))
+        else:
+            self._lap_event(snapshot)
+
+        return events
+
+    def _resolve_play_state(self, snapshot: TelemetrySnapshot) -> int:
+        paused = bool(snapshot.get("paused", False))
+        car_on_track = bool(snapshot.get("car_on_track", True))
+        lap_count = snapshot.get("lap_count")
+        same_speed = self._speed_is_stale(snapshot)
+
+        if paused or not car_on_track or same_speed or lap_count is None:
+            return 0
+        return 1
+
+    def _speed_is_stale(self, snapshot: TelemetrySnapshot) -> bool:
+        speed = snapshot.get("car_speed")
+        if speed is None:
+            return True
+
+        current = float(speed)
+        samples = [current]
+        for _timestamp, past_speed in list(self._recent_speeds)[-4:]:
+            samples.append(past_speed)
+        return len(samples) >= 5 and len(set(samples)) == 1
+
+    def _collision_detected(self, snapshot: TelemetrySnapshot, now: float) -> bool:
+        speed = snapshot.get("car_speed")
+        if speed is None:
+            return False
+
+        current_speed = float(speed)
+        while self._recent_speeds and now - self._recent_speeds[0][0] > 0.5:
+            self._recent_speeds.popleft()
+
+        prior_peak = max((past_speed for _timestamp, past_speed in self._recent_speeds), default=current_speed)
+        self._recent_speeds.append((now, current_speed))
+        if now - self._last_collision_at < 0.9:
+            return False
+        if prior_peak < 5.0:
+            return False
+        if current_speed <= prior_peak * 0.2:
+            self._last_collision_at = now
+            return True
+        return False
+
+    def _lap_event(self, snapshot: TelemetrySnapshot) -> Optional[int]:
+        lap_count = snapshot.get("lap_count")
+        current_lap = None if lap_count is None else int(lap_count)
+        previous_lap = self._last_lap_count
+        self._last_lap_count = current_lap
+
+        if current_lap is None or current_lap == previous_lap:
+            return None
+        if previous_lap is None and current_lap == 0:
+            return LAP_EVENT_PREPARE
+        if previous_lap == 0 and current_lap == 1:
+            return LAP_EVENT_START
+
+        laps_in_race = snapshot.get("laps_in_race")
+        if laps_in_race is not None and current_lap == int(laps_in_race) + 1:
+            return LAP_EVENT_FINISH
+        return LAP_EVENT_PASS
+
+
 def run(config: RuntimeLaunchConfig) -> int:
     console = LiveConsole()
     console.log(f"接続先PS5: {config.ip_address}")
@@ -112,7 +202,7 @@ def run(config: RuntimeLaunchConfig) -> int:
     rows_written = 0
     warning_keys: set[tuple[str, str, tuple[str, ...]]] = set()
     esp_manager = EspSerialManager(port_names=config.esp_ports, auto_bind_ps5_ip=(config.ip_address if config.auto_bind else None))
-    last_gear: Optional[int] = None
+    esp_director = EspTelemetryDirector()
     source = build_telemetry_source(config.ip_address, config.log_trace_path)
     source.start()
     receiver = TelemetryReceiver(source)
@@ -149,16 +239,13 @@ def run(config: RuntimeLaunchConfig) -> int:
                 sink.write_snapshot(snapshot)
                 rows_written += 1
                 console.status_from_snapshot(snapshot)
-                gear = snapshot.get("current_gear")
-                if gear is not None:
-                    gear = int(gear)
-                    if 0 <= gear <= 4:
-                        if last_gear is None or gear != last_gear:
-                            esp_manager.submit_event(config.ip_address, EVENT_GEAR_CHANGED, gear)
-                        last_gear = gear
-                esp_manager.submit_telemetry(config.ip_address, snapshot)
-
                 now = time.monotonic()
+                events = esp_director.update(snapshot, now)
+                esp_snapshot = snapshot.with_values(play_state=esp_director.play_state)
+                for event_id, value in events:
+                    esp_manager.submit_event(config.ip_address, event_id, value)
+                esp_manager.submit_telemetry(config.ip_address, esp_snapshot)
+
                 if now - last_drain_at >= 1.0:
                     for msg in esp_manager.drain_messages():
                         console.log(msg)

@@ -18,10 +18,16 @@ class FrameType(IntEnum):
 MAGIC = b"G7"
 VERSION = 1
 HEADER = struct.Struct("<2sBBBBHHH")
-TELEMETRY = struct.Struct("<ffbBB?ffffhhii")
+TELEMETRY = struct.Struct("<ffffBBfB")
 EVENT = struct.Struct("<BB")
 
-EVENT_GEAR_CHANGED = 1
+EVENT_COLLISION = 1
+EVENT_LAP = 2
+
+LAP_EVENT_PREPARE = 0
+LAP_EVENT_START = 1
+LAP_EVENT_PASS = 2
+LAP_EVENT_FINISH = 3
 
 
 class FrameParser:
@@ -73,18 +79,12 @@ def build_telemetry_payload(values: Mapping[str, Any]) -> bytes:
     return TELEMETRY.pack(
         _float(values, "car_speed"),
         _float(values, "engine_rpm"),
-        _int(values, "current_gear", -1),
+        _float(values, "rpm_alert_min"),
+        _float(values, "rpm_alert_max"),
         _int(values, "throttle"),
         _int(values, "brake"),
-        bool(values.get("in_race", False)),
-        _float(values, "turbo_boost"),
-        _float(values, "velocity_x"),
-        _float(values, "velocity_y"),
-        _float(values, "velocity_z"),
-        _int(values, "lap_count", -1),
-        _int(values, "cars_in_race", -1),
-        _int(values, "best_lap_time", -1),
-        _int(values, "last_lap_time", -1),
+        _float(values, "velocity_right"),
+        _int(values, "play_state"),
     )
 
 
