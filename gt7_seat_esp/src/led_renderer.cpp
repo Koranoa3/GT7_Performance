@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "gt7_config.h"
+#include "gt7_utils.h"
 
 namespace gt7
 {

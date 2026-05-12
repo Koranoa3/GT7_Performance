@@ -32,7 +32,7 @@ constexpr uint8_t kFanPwmChannel = 0;
 constexpr uint32_t kFanPwmFrequencyHz = 5000;
 constexpr uint8_t kFanPwmResolutionBits = 8;
 constexpr uint8_t kFanPwmMaxDuty = (1u << kFanPwmResolutionBits) - 1u;
-constexpr uint8_t kFanIdleDuty = 36;
+constexpr uint8_t kFanIdleDuty = (1u << kFanPwmResolutionBits) - 1u;
 }  // namespace gt7::config
 
 #ifndef GT7_DEVICE_ID

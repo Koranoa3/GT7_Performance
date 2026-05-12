@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "gt7_config.h"
+#include "gt7_utils.h"
 
 namespace gt7
 {
@@ -32,8 +33,8 @@ void HardwareController::updateActuators(const TelemetryState &telemetry, bool t
 
   if (telemetry.play_state == PlayRace)
   {
-    const float speed_ratio = constrain(telemetry.car_speed / config::kSpeedFullScaleMps, 0.0f, 1.0f);
-    const uint8_t pwm_duty = static_cast<uint8_t>(speed_ratio * config::kFanPwmMaxDuty + 0.5f);
+    const float speed_ratio = constrain((telemetry.car_speed-20) / config::kSpeedFullScaleMps, 0.0f, 1.0f);
+    const uint8_t pwm_duty = static_cast<uint8_t>((1.0f - speed_ratio) * config::kFanPwmMaxDuty + 0.5f);
     ledcWrite(config::kFanPwmChannel, pwm_duty);
     digitalWrite(GT7_VIBRATION_PIN, fabsf(telemetry.velocity_right) > 15.0f ? HIGH : LOW);
     return;
