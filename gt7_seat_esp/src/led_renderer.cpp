@@ -105,23 +105,34 @@ void LedRenderer::rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uin
   const float alert_min = telemetry.rpm_alert_min > 1.0f ? telemetry.rpm_alert_min : 7000.0f;
   const float alert_max = telemetry.rpm_alert_max > alert_min ? telemetry.rpm_alert_max : alert_min + 1000.0f;
 
-  if (telemetry.engine_rpm <= alert_min)
+  if (telemetry.engine_rpm <= alert_min / 2.0f)
   {
     fillSegment(segment, CRGB::Black);
-    fillRatioRange(segment, 0.0f, telemetry.engine_rpm / alert_min, CRGB::Cyan);
+    return;
+  }
+  if (alert_min / 2.0f <= telemetry.engine_rpm and telemetry.engine_rpm <= alert_min)
+  {
+    fillSegment(segment, CRGB::Black);
+    fillRatioRange(segment, 0.0f, (telemetry.engine_rpm-alert_min/2)/(alert_min/2), CRGB::Cyan);
     return;
   }
 
-  fillSegment(segment, CRGB(32, 32, 32));
+  fillSegment(segment, (millis()%150 < 75 ? CRGB::Magenta : CRGB::Cyan));
   const float ratio = (telemetry.engine_rpm - alert_min) / (alert_max - alert_min);
-  fillRatioRange(segment, 0.0f, ratio, CRGB::Red);
+  fillRatioRange(segment, 0.0f, ratio, CRGB::White);
 }
 
 void LedRenderer::whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const
 {
   const Segment segment{leds, start, end};
-  const float raw = (static_cast<float>(millis() % 4000) - 2000.0f) / 2000.0f;
+  const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
   const float next = constrain(raw * raw, 0.0f, 1.0f);
+  if (next < value)
+  {
+    fillRatioRange(segment, value, 1.0f, CRGB::White);
+    fillRatioRange(segment, 0.0f, next, CRGB::Black);
+    return;
+  }
   fillRatioRange(segment, value, next, CRGB::White);
 }
 
@@ -143,12 +154,12 @@ void LedRenderer::renderIdle()
   fadeToBlackBy(base_leds_, GT7_BASE_LED_COUNT, 80);
   fadeToBlackBy(monitor_leds_, GT7_MONITOR_LED_COUNT, 80);
 
-  whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.start, base_ripple_left_.end, idle_ripple_prev_);
+  whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.end, base_ripple_left_.start, idle_ripple_prev_);
   whiteRippleAnimation(base_ripple_right_.leds, base_ripple_right_.start, base_ripple_right_.end, idle_ripple_prev_);
   whiteRippleAnimation(monitor_ripple_left_.leds, monitor_ripple_left_.start, monitor_ripple_left_.end, idle_ripple_prev_);
   whiteRippleAnimation(monitor_ripple_right_.leds, monitor_ripple_right_.end, monitor_ripple_right_.start, idle_ripple_prev_);
 
-  const float raw = (static_cast<float>(millis() % 4000) - 2000.0f) / 2000.0f;
+  const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
   idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
 }
 
