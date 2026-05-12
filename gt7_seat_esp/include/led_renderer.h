@@ -22,10 +22,15 @@ private:
   CRGB base_leds_[GT7_BASE_LED_COUNT] = {};
   CRGB monitor_leds_[GT7_MONITOR_LED_COUNT] = {};
 
+  Segment base_ripple_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 2};
+  Segment base_ripple_right_{base_leds_, GT7_BASE_LED_COUNT / 2, GT7_BASE_LED_COUNT};
   Segment base_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 4};
   Segment base_right_{base_leds_, GT7_BASE_LED_COUNT / 4, GT7_BASE_LED_COUNT / 2};
   Segment rail_left_{base_leds_, GT7_BASE_LED_COUNT / 2, (GT7_BASE_LED_COUNT * 3) / 4};
   Segment rail_right_{base_leds_, (GT7_BASE_LED_COUNT * 3) / 4, GT7_BASE_LED_COUNT};
+
+  Segment monitor_ripple_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 2};
+  Segment monitor_ripple_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 2, GT7_MONITOR_LED_COUNT};
   Segment monitor_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 3};
   Segment monitor_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 3, (GT7_MONITOR_LED_COUNT * 2) / 3};
   Segment monitor_bottom_{monitor_leds_, (GT7_MONITOR_LED_COUNT * 2) / 3, GT7_MONITOR_LED_COUNT};

@@ -142,13 +142,10 @@ void LedRenderer::renderIdle()
   fadeToBlackBy(base_leds_, GT7_BASE_LED_COUNT, 80);
   fadeToBlackBy(monitor_leds_, GT7_MONITOR_LED_COUNT, 80);
 
-  whiteRippleAnimation(base_leds_, base_left_.start, base_left_.end, idle_ripple_prev_);
-  whiteRippleAnimation(base_leds_, base_right_.end, base_right_.start, idle_ripple_prev_);
-  whiteRippleAnimation(base_leds_, rail_left_.start, rail_left_.end, idle_ripple_prev_);
-  whiteRippleAnimation(base_leds_, rail_right_.end, rail_right_.start, idle_ripple_prev_);
-  whiteRippleAnimation(monitor_leds_, monitor_bottom_.start, monitor_bottom_.end, idle_ripple_prev_);
-  whiteRippleAnimation(monitor_leds_, monitor_left_.end, monitor_left_.start, idle_ripple_prev_);
-  whiteRippleAnimation(monitor_leds_, monitor_right_.start, monitor_right_.end, idle_ripple_prev_);
+  whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.start, base_ripple_left_.end, idle_ripple_prev_);
+  whiteRippleAnimation(base_ripple_right_.leds, base_ripple_right_.start, base_ripple_right_.end, idle_ripple_prev_);
+  whiteRippleAnimation(monitor_ripple_left_.leds, monitor_ripple_left_.start, monitor_ripple_left_.end, idle_ripple_prev_);
+  whiteRippleAnimation(monitor_ripple_right_.leds, monitor_ripple_right_.end, monitor_ripple_right_.start, idle_ripple_prev_);
 
   const float raw = (static_cast<float>(millis() % 4000) - 2000.0f) / 2000.0f;
   idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
