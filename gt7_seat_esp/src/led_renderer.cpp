@@ -154,10 +154,10 @@ void LedRenderer::renderIdle()
   fadeToBlackBy(base_leds_, GT7_BASE_LED_COUNT, 80);
   fadeToBlackBy(monitor_leds_, GT7_MONITOR_LED_COUNT, 80);
 
-  whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.end, base_ripple_left_.start, idle_ripple_prev_);
-  whiteRippleAnimation(base_ripple_right_.leds, base_ripple_right_.start, base_ripple_right_.end, idle_ripple_prev_);
-  whiteRippleAnimation(monitor_ripple_left_.leds, monitor_ripple_left_.start, monitor_ripple_left_.end, idle_ripple_prev_);
-  whiteRippleAnimation(monitor_ripple_right_.leds, monitor_ripple_right_.end, monitor_ripple_right_.start, idle_ripple_prev_);
+  whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.start, base_ripple_left_.end, idle_ripple_prev_);
+  whiteRippleAnimation(base_ripple_right_.leds, base_ripple_right_.end, base_ripple_right_.start, idle_ripple_prev_);
+  whiteRippleAnimation(monitor_ripple_left_.leds, monitor_ripple_left_.end, monitor_ripple_left_.start, idle_ripple_prev_);
+  whiteRippleAnimation(monitor_ripple_right_.leds, monitor_ripple_right_.start, monitor_ripple_right_.end, idle_ripple_prev_);
 
   const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
   idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
