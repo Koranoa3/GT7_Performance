@@ -7,7 +7,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
-from granturismo.intake import Listener
+from granturismo.intake import Listener, ReadError, SocketNotBoundError
 
 from gt7_console import LiveConsole
 from gt7_esp_bridge import EspSerialManager
@@ -34,6 +34,140 @@ class TelemetrySource(Protocol):
 
     def get(self, timeout: Optional[float] = None) -> Any:
         ...
+
+
+class SafeListener(Listener):
+    """Listener variant that keeps retrying heartbeat sends on transient socket errors."""
+
+    def _send_heartbeat(self) -> None:
+        last_heartbeat = 0.0
+        retry_delay = 1.0
+        while not self._terminate_event.is_set():
+            curr_time = time.time()
+            if curr_time - last_heartbeat < self._HEARTBEAT_DELAY:
+                remaining = min(self._HEARTBEAT_DELAY - (curr_time - last_heartbeat), 0.1)
+                self._terminate_event.wait(max(remaining, 0.01))
+                continue
+
+            try:
+                self._sock.sendto(self._HEARTBEAT_MESSAGE, (self._addr, self._HEARTBEAT_PORT))
+            except OSError:
+                if self._terminate_event.wait(retry_delay):
+                    break
+                retry_delay = min(retry_delay * 2.0, 10.0)
+                continue
+
+            last_heartbeat = curr_time
+            retry_delay = 1.0
+
+        if self._sock is not None:
+            try:
+                self._sock.close()
+            finally:
+                self._sock_bounded = False
+
+
+class RecoveringTelemetrySource:
+    """Wraps the live Listener and recreates it after transient socket failures."""
+
+    def __init__(self, ip_address: str) -> None:
+        self._ip_address = ip_address
+        self._lock = threading.Lock()
+        self._listener: Optional[SafeListener] = None
+        self._closed = False
+        self._next_retry_at = 0.0
+        self._retry_delay = 1.0
+
+    def start(self) -> None:
+        self._closed = False
+        self._ensure_listener(force_new=True)
+
+    def close(self) -> None:
+        self._closed = True
+        listener = self._swap_listener(None)
+        if listener is not None:
+            listener.close()
+
+    def get(self, timeout: Optional[float] = None) -> Any:
+        deadline = None if timeout is None else time.monotonic() + max(timeout, 0.0)
+        while True:
+            if self._closed:
+                raise TimeoutError("Telemetry source is closed")
+
+            listener = self._ensure_listener()
+            if listener is None:
+                if self._wait_for_retry(deadline):
+                    raise TimeoutError("Telemetry source is reconnecting")
+                continue
+
+            remaining = None if deadline is None else max(0.0, deadline - time.monotonic())
+            try:
+                return listener.get(timeout=remaining)
+            except TimeoutError:
+                raise
+            except (ReadError, SocketNotBoundError, OSError):
+                self._recover_listener(listener)
+                if self._wait_for_retry(deadline):
+                    raise TimeoutError("Telemetry source is reconnecting")
+
+    def _ensure_listener(self, force_new: bool = False) -> Optional[SafeListener]:
+        previous: Optional[SafeListener] = None
+        with self._lock:
+            if self._listener is not None and not force_new:
+                return self._listener
+            if self._closed:
+                return None
+            if not force_new and time.monotonic() < self._next_retry_at:
+                return None
+            previous = self._listener
+            listener = SafeListener(self._ip_address)
+            self._listener = listener
+
+        try:
+            listener.start()
+            self._retry_delay = 1.0
+            self._next_retry_at = 0.0
+            if previous is not None and previous is not listener:
+                previous.close()
+            return listener
+        except Exception:
+            self._recover_listener(listener)
+            return None
+
+    def _recover_listener(self, listener: SafeListener) -> None:
+        current = self._swap_listener(None)
+        if current is not None and current is not listener:
+            current.close()
+        try:
+            listener.close()
+        except Exception:
+            pass
+        self._schedule_retry()
+
+    def _swap_listener(self, listener: Optional[SafeListener]) -> Optional[SafeListener]:
+        with self._lock:
+            previous = self._listener
+            self._listener = listener
+            return previous
+
+    def _schedule_retry(self) -> None:
+        self._next_retry_at = time.monotonic() + self._retry_delay
+        self._retry_delay = min(self._retry_delay * 2.0, 10.0)
+
+    def _wait_for_retry(self, deadline: Optional[float]) -> bool:
+        if self._closed:
+            return True
+
+        now = time.monotonic()
+        wait_seconds = max(0.0, self._next_retry_at - now)
+        if deadline is not None:
+            wait_seconds = min(wait_seconds, max(0.0, deadline - now))
+
+        if wait_seconds <= 0.0:
+            return False
+
+        time.sleep(min(wait_seconds, 0.1))
+        return deadline is not None and time.monotonic() >= deadline
 
 
 class TelemetryReceiver:
@@ -87,7 +221,7 @@ class TelemetryReceiver:
 def build_telemetry_source(ip_address: str, log_trace_path: Optional[Path]) -> TelemetrySource:
     if log_trace_path is not None:
         return LogTraceListener(log_trace_path)
-    return Listener(ip_address)
+    return RecoveringTelemetrySource(ip_address)
 
 
 def build_telemetry_sink(output_path: Path, trace_mode: bool) -> TelemetrySink:
