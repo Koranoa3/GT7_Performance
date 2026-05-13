@@ -98,10 +98,12 @@ void SeatController::handleEvent(const Frame &frame)
   }
 
   const uint8_t event_id = frame.payload[0];
+  const uint8_t event_value = frame.payload[1];
   const uint32_t now = millis();
   if (event_id == EventCollision)
   {
     collision_started_ms_ = now;
+    hardware_.triggerCollisionVibration(now, event_value);
   }
   else if (event_id == EventLap)
   {

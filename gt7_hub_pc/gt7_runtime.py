@@ -245,6 +245,7 @@ def log_snapshot_warnings(
 class EspTelemetryDirector:
     def __init__(self) -> None:
         self._recent_speeds: deque[tuple[float, float]] = deque(maxlen=16)
+        self._recent_motion_samples: deque[tuple[float, float, float]] = deque(maxlen=32)
         self._last_lap_count: Optional[int] = None
         self._last_collision_at = 0.0
         self.play_state = 0
@@ -254,8 +255,9 @@ class EspTelemetryDirector:
         events: list[tuple[int, int]] = []
 
         if self.play_state == 1:
-            if self._collision_detected(snapshot, now):
-                events.append((EVENT_COLLISION, 0))
+            collision_strength = self._collision_strength(snapshot, now)
+            if collision_strength is not None:
+                events.append((EVENT_COLLISION, collision_strength))
             lap_event = self._lap_event(snapshot)
             if lap_event is not None:
                 events.append((EVENT_LAP, lap_event))
@@ -285,10 +287,10 @@ class EspTelemetryDirector:
             samples.append(past_speed)
         return len(samples) >= 5 and len(set(samples)) == 1
 
-    def _collision_detected(self, snapshot: TelemetrySnapshot, now: float) -> bool:
+    def _collision_strength(self, snapshot: TelemetrySnapshot, now: float) -> Optional[int]:
         speed = snapshot.get("car_speed")
         if speed is None:
-            return False
+            return None
 
         current_speed = float(speed)
         while self._recent_speeds and now - self._recent_speeds[0][0] > 0.5:
@@ -296,14 +298,70 @@ class EspTelemetryDirector:
 
         prior_peak = max((past_speed for _timestamp, past_speed in self._recent_speeds), default=current_speed)
         self._recent_speeds.append((now, current_speed))
+        speed_delta = max(prior_peak - current_speed, 0.0)
+
+        velocity_right = snapshot.get("velocity_right")
+        velocity_forward = snapshot.get("velocity_forward")
+        current_gear = snapshot.get("current_gear")
+        lateral_delta = 0.0
+        longitudinal_delta = 0.0
+
+        if velocity_right is not None and velocity_forward is not None and current_gear is not None:
+            current_velocity_right = float(velocity_right)
+            current_velocity_forward = float(velocity_forward)
+
+            while self._recent_motion_samples and now - self._recent_motion_samples[0][0] > 0.2:
+                self._recent_motion_samples.popleft()
+
+            lateral_delta = max(
+                (
+                    abs(current_velocity_right - past_velocity_right)
+                    for _timestamp, past_velocity_right, _past_velocity_forward in self._recent_motion_samples
+                ),
+                default=0.0,
+            )
+            longitudinal_delta = max(
+                (
+                    abs(current_velocity_forward - past_velocity_forward)
+                    for _timestamp, _past_velocity_right, past_velocity_forward in self._recent_motion_samples
+                ),
+                default=0.0,
+            )
+            self._recent_motion_samples.append((now, current_velocity_right, current_velocity_forward))
+
         if now - self._last_collision_at < 0.9:
-            return False
-        if prior_peak < 5.0:
-            return False
-        if current_speed <= prior_peak * 0.2:
-            self._last_collision_at = now
-            return True
-        return False
+            return None
+
+        speed_collision = prior_peak >= 5.0 and current_speed <= prior_peak * 0.2
+        lateral_collision = lateral_delta >= 5.0 and (current_gear is not None and current_gear > 1)
+        longitudinal_collision = longitudinal_delta >= 10.0 and (current_gear is not None and current_gear > 2)
+
+        if not (speed_collision or lateral_collision or longitudinal_collision):
+            return None
+
+        strength = max(
+            self._scale_collision_strength(lateral_delta, 5.0) if lateral_collision else 0,
+            self._scale_collision_strength(longitudinal_delta, 10.0) if longitudinal_collision else 0,
+            self._scale_collision_strength(speed_delta, 5.0) if speed_delta > 0.0 else 0,
+        )
+
+        if strength <= 0:
+            return None
+
+        self._last_collision_at = now
+        return strength
+
+    @staticmethod
+    def _scale_collision_strength(delta_mps: float, minimum_delta_mps: float) -> int:
+        if delta_mps < minimum_delta_mps:
+            return 0
+
+        capped_delta = min(delta_mps, 40.0)
+        if capped_delta <= minimum_delta_mps:
+            return 1
+
+        normalized = (capped_delta - minimum_delta_mps) / (40.0 - minimum_delta_mps)
+        return int(round(1.0 + normalized * 254.0))
 
     def _lap_event(self, snapshot: TelemetrySnapshot) -> Optional[int]:
         lap_count = snapshot.get("lap_count")

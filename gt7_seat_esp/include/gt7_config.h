@@ -19,6 +19,8 @@ constexpr uint32_t kLinkTimeoutMs = 2500;
 constexpr uint32_t kTelemetryTimeoutMs = 2500;
 constexpr uint32_t kLedRefreshIntervalMs = 20;
 constexpr uint32_t kCollisionDurationMs = 900;
+constexpr uint32_t kCollisionVibrationMinDurationMs = 200;
+constexpr uint32_t kCollisionVibrationMaxDurationMs = 800;
 constexpr uint32_t kLapFlashDurationMs = 600;
 
 constexpr size_t kMaxPayloadSize = 96;
