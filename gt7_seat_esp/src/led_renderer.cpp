@@ -103,7 +103,7 @@ void LedRenderer::rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uin
 {
   const Segment segment{leds, start, end};
   const float alert_min = telemetry.rpm_alert_min > 1.0f ? telemetry.rpm_alert_min : 7000.0f;
-  const float alert_max = telemetry.rpm_alert_max > alert_min ? telemetry.rpm_alert_max : alert_min + 1000.0f;
+  // const float alert_max = telemetry.rpm_alert_max > alert_min ? telemetry.rpm_alert_max : alert_min + 1000.0f;
 
   if (telemetry.engine_rpm <= alert_min / 2.0f)
   {
@@ -118,8 +118,8 @@ void LedRenderer::rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uin
   }
 
   fillSegment(segment, (millis()%150 < 75 ? CRGB::Magenta : CRGB::Cyan));
-  const float ratio = (telemetry.engine_rpm - alert_min) / (alert_max - alert_min);
-  fillRatioRange(segment, 0.0f, ratio, CRGB::White);
+  // const float ratio = (telemetry.engine_rpm - alert_min) / (alert_max - alert_min);
+  // fillRatioRange(segment, 0.0f, ratio, CRGB::White);
 }
 
 void LedRenderer::whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const
