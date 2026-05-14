@@ -14,6 +14,7 @@ class RuntimeLaunchConfig:
     ip_address: str
     log_trace_path: Optional[Path]
     output_path: Path
+    record_enabled: bool
     esp_ports: list[str]
     bindings: list[tuple[str, int]]
     auto_bind: bool
@@ -44,10 +45,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="records/ に保存したCSVを疑似トレース入力として使います。",
     )
     parser.add_argument(
+        "--record",
+        action="store_true",
+        help="CSV記録を有効化します（未指定時は記録しません）。",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="CSVの出力先。未指定の場合は records/ にタイムスタンプ付きで保存します。",
+        help="CSVの出力先。`--record` 指定時のみ有効です。未指定時は records/ にタイムスタンプ付きで保存します。",
     )
     parser.add_argument(
         "--esp-port",
@@ -145,6 +151,7 @@ def load_runtime_config(
         ip_address=ip_address,
         log_trace_path=args.trace,
         output_path=output_path,
+        record_enabled=args.record,
         esp_ports=esp_ports,
         bindings=bindings,
         auto_bind=args.auto_bind,
