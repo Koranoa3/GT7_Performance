@@ -180,7 +180,7 @@ void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], u
 
   for (uint16_t i = 0; i < length; ++i)
   {
-    float x = (static_cast<float>(i) / static_cast<float>(length)) + phase;
+    float x = (static_cast<float>(i) / static_cast<float>(length)) - phase;
     x = x - floorf(x);
     const float wave = 1.0f - fabsf((x * 2.0f) - 1.0f);
     const uint8_t brightness = static_cast<uint8_t>((wave * wave) * base_brightness);

@@ -29,7 +29,7 @@ constexpr size_t kTelemetryPayloadSize = 23;
 constexpr size_t kSectionPreviewPayloadSize = 5;
 
 constexpr float kSpeedFullScaleMps = 50.0f;
-constexpr float kMileageScale = 16.0f;
+constexpr float kMileageScale = 32.0f;
 constexpr uint32_t kGaugeAnimationPeriodMs = 600;
 constexpr uint8_t kGaugeAnimationMinBrightness = 40;
 constexpr uint8_t kGaugeAnimationMaxBrightness = 255;
