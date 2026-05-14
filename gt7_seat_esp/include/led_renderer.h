@@ -32,18 +32,18 @@ private:
   CRGB base_leds_[GT7_BASE_LED_COUNT] = {};
   CRGB monitor_leds_[GT7_MONITOR_LED_COUNT] = {};
 
-  Segment base_ripple_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 2};
-  Segment base_ripple_right_{base_leds_, GT7_BASE_LED_COUNT / 2, GT7_BASE_LED_COUNT};
-  Segment base_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 4};
-  Segment base_right_{base_leds_, GT7_BASE_LED_COUNT / 4, GT7_BASE_LED_COUNT / 2};
-  Segment rail_left_{base_leds_, GT7_BASE_LED_COUNT / 2, (GT7_BASE_LED_COUNT * 3) / 4};
-  Segment rail_right_{base_leds_, (GT7_BASE_LED_COUNT * 3) / 4, GT7_BASE_LED_COUNT};
+  Segment base_ripple_left_{base_leds_, 0, 97};
+  Segment base_ripple_right_{base_leds_, 98, 196};
+  Segment base_left_{base_leds_, 195, 131};
+  Segment base_right_{base_leds_, 51, 130};
+  Segment rail_left_{base_leds_, 196, 249};
+  Segment rail_right_{base_leds_, 50, 0};
 
-  Segment monitor_ripple_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 2};
-  Segment monitor_ripple_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 2, GT7_MONITOR_LED_COUNT};
-  Segment monitor_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 3};
-  Segment monitor_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 3, (GT7_MONITOR_LED_COUNT * 2) / 3};
-  Segment monitor_bottom_{monitor_leds_, (GT7_MONITOR_LED_COUNT * 2) / 3, GT7_MONITOR_LED_COUNT};
+    Segment monitor_ripple_left_{monitor_leds_, 0, 51};
+    Segment monitor_ripple_right_{monitor_leds_, 52, 102};
+    Segment monitor_left_{monitor_leds_,102, 76};
+    Segment monitor_right_{monitor_leds_, 0, 26};
+    Segment monitor_bottom_{monitor_leds_, 27, 75};
 
   uint32_t last_led_render_ms_ = 0;
   uint32_t last_animation_ms_ = 0;
