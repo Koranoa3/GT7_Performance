@@ -41,6 +41,7 @@ private:
   void handlePong(const Frame &frame);
   void handleBind(const Frame &frame);
   void handleEvent(const Frame &frame);
+  void handleSectionPreview(const Frame &frame);
   void handleTelemetry(const Frame &frame);
 };
 }  // namespace gt7

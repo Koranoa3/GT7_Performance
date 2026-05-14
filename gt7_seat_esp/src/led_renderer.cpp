@@ -18,12 +18,38 @@ uint16_t LedRenderer::segmentIndex(const Segment &segment, uint16_t offset)
   return segment.end >= segment.start ? segment.start + offset : segment.start - 1 - offset;
 }
 
+uint16_t LedRenderer::clampIndex(uint16_t index, uint16_t led_count)
+{
+  if (led_count == 0)
+  {
+    return 0;
+  }
+  return index < led_count ? index : static_cast<uint16_t>(led_count - 1);
+}
+
 void LedRenderer::fillSegment(const Segment &segment, const CRGB &color)
 {
   const uint16_t length = segmentLength(segment);
   for (uint16_t i = 0; i < length; ++i)
   {
     segment.leds[segmentIndex(segment, i)] = color;
+  }
+}
+
+void LedRenderer::fillInclusiveRange(CRGB leds[], uint16_t led_count, uint16_t start_index, uint16_t end_index, const CRGB &color)
+{
+  if (led_count == 0)
+  {
+    return;
+  }
+
+  const uint16_t start = clampIndex(start_index, led_count);
+  const uint16_t end = clampIndex(end_index, led_count);
+  const uint16_t lower = start < end ? start : end;
+  const uint16_t upper = start < end ? end : start;
+  for (uint16_t index = lower; index <= upper; ++index)
+  {
+    leds[index] = color;
   }
 }
 
@@ -67,6 +93,15 @@ void LedRenderer::setup()
   FastLED.addLeds<GT7_LED_TYPE, GT7_MONITOR_LED_PIN, GT7_COLOR_ORDER>(monitor_leds_, GT7_MONITOR_LED_COUNT);
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.clear(true);
+}
+
+void LedRenderer::previewSection(uint8_t strip_id, uint16_t start_index, uint16_t end_index, uint32_t duration_ms)
+{
+  preview_.active = true;
+  preview_.strip_id = strip_id == LedStripMonitor ? LedStripMonitor : LedStripBase;
+  preview_.start_index = start_index;
+  preview_.end_index = end_index;
+  preview_.expires_at_ms = millis() + duration_ms;
 }
 
 void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const
@@ -163,6 +198,42 @@ void LedRenderer::renderIdle()
   idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
 }
 
+bool LedRenderer::renderPreview(uint32_t now)
+{
+  if (!preview_.active)
+  {
+    return false;
+  }
+  if (static_cast<int32_t>(now - preview_.expires_at_ms) >= 0)
+  {
+    preview_.active = false;
+    return false;
+  }
+
+  fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
+  fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
+
+  CRGB *target_leds = preview_.strip_id == LedStripMonitor ? monitor_leds_ : base_leds_;
+  const uint16_t target_count = preview_.strip_id == LedStripMonitor ? GT7_MONITOR_LED_COUNT : GT7_BASE_LED_COUNT;
+  if (target_count == 0)
+  {
+    return true;
+  }
+
+  const uint16_t start = clampIndex(preview_.start_index, target_count);
+  const uint16_t end = clampIndex(preview_.end_index, target_count);
+  fillInclusiveRange(target_leds, target_count, start, end, CRGB(0, 30, 0));
+  if (start == end)
+  {
+    target_leds[start] = CRGB(30, 0, 30);
+    return true;
+  }
+
+  target_leds[start] = CRGB(0, 0, 30);
+  target_leds[end] = CRGB(30, 0, 0);
+  return true;
+}
+
 void LedRenderer::renderRace(const TelemetryState &telemetry,
                              bool collision_active,
                              uint32_t collision_elapsed_ms,
@@ -200,6 +271,14 @@ void LedRenderer::update(const TelemetryState &telemetry,
   const uint32_t now = millis();
   if ((now - last_led_render_ms_) < config::kLedRefreshIntervalMs)
   {
+    return;
+  }
+
+  if (renderPreview(now))
+  {
+    last_animation_ms_ = now;
+    FastLED.show();
+    last_led_render_ms_ = now;
     return;
   }
 

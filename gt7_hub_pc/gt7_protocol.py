@@ -13,6 +13,7 @@ class FrameType(IntEnum):
     BIND = 4
     EVENT = 5
     ACK = 6
+    SECTION_PREVIEW = 7
 
 
 MAGIC = b"G7"
@@ -20,9 +21,13 @@ VERSION = 1
 HEADER = struct.Struct("<2sBBBBHHH")
 TELEMETRY = struct.Struct("<ffffBBfB")
 EVENT = struct.Struct("<BB")
+SECTION_PREVIEW = struct.Struct("<BHH")
 
 EVENT_COLLISION = 1
 EVENT_LAP = 2
+
+LED_STRIP_BASE = 0
+LED_STRIP_MONITOR = 1
 
 LAP_EVENT_PREPARE = 0
 LAP_EVENT_START = 1
@@ -94,3 +99,7 @@ def build_bind_payload(ps5_ip: str) -> bytes:
 
 def build_event_payload(event_id: int, value: int) -> bytes:
     return EVENT.pack(event_id & 0xFF, value & 0xFF)
+
+
+def build_section_preview_payload(strip_id: int, start_index: int, end_index: int) -> bytes:
+    return SECTION_PREVIEW.pack(strip_id & 0xFF, start_index & 0xFFFF, end_index & 0xFFFF)

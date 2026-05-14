@@ -26,9 +26,11 @@ constexpr uint32_t kLapFlashDurationMs = 600;
 constexpr size_t kMaxPayloadSize = 96;
 constexpr size_t kMaxFrameSize = 128;
 constexpr size_t kTelemetryPayloadSize = 23;
+constexpr size_t kSectionPreviewPayloadSize = 5;
 
 constexpr float kSpeedFullScaleMps = 50.0f;
 constexpr float kMileageScale = 16.0f;
+constexpr uint32_t kSectionPreviewDurationMs = 10000;
 
 constexpr uint8_t kFanPwmChannel = 0;
 constexpr uint32_t kFanPwmFrequencyHz = 5000;

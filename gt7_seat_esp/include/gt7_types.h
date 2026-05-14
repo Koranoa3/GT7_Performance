@@ -15,6 +15,7 @@ enum class FrameType : uint8_t
   Bind = 4,
   Event = 5,
   Ack = 6,
+  SectionPreview = 7,
 };
 
 enum EventId : uint8_t
@@ -27,6 +28,12 @@ enum PlayState : uint8_t
 {
   PlayIdle = 0,
   PlayRace = 1,
+};
+
+enum LedStripId : uint8_t
+{
+  LedStripBase = 0,
+  LedStripMonitor = 1,
 };
 
 struct TelemetryState

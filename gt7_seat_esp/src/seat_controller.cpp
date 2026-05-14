@@ -111,6 +111,22 @@ void SeatController::handleEvent(const Frame &frame)
   }
 }
 
+void SeatController::handleSectionPreview(const Frame &frame)
+{
+  last_pc_seen_ms_ = millis();
+  if (frame.payload_len < config::kSectionPreviewPayloadSize)
+  {
+    return;
+  }
+
+  const uint8_t strip_id = frame.payload[0];
+  const uint16_t start_index = static_cast<uint16_t>(frame.payload[1]) |
+                               (static_cast<uint16_t>(frame.payload[2]) << 8);
+  const uint16_t end_index = static_cast<uint16_t>(frame.payload[3]) |
+                             (static_cast<uint16_t>(frame.payload[4]) << 8);
+  led_renderer_.previewSection(strip_id, start_index, end_index);
+}
+
 void SeatController::handleTelemetry(const Frame &frame)
 {
   last_pc_seen_ms_ = millis();
@@ -158,6 +174,9 @@ void SeatController::handleFrame(const Frame &frame)
       break;
     case FrameType::Event:
       handleEvent(frame);
+      break;
+    case FrameType::SectionPreview:
+      handleSectionPreview(frame);
       break;
     default:
       break;
