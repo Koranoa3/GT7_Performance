@@ -149,7 +149,7 @@ void SeatController::handleTelemetry(const Frame &frame)
   telemetry_state_.rpm_alert_min = read_f32(8);
   telemetry_state_.rpm_alert_max = read_f32(12);
   telemetry_state_.throttle = payload[16];
-  telemetry_state_.brake = payload[17];
+  telemetry_state_.current_gear = static_cast<int8_t>(payload[17]);
   telemetry_state_.velocity_right = read_f32(18);
   telemetry_state_.play_state = payload[22] == PlayRace ? PlayRace : PlayIdle;
 

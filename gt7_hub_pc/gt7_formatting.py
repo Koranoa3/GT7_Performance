@@ -399,7 +399,7 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             digits=0,
             esp_default=0,
         ),
-        field("brake", packet_attr("brake"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0),
+        field("brake", packet_attr("brake"), CSV_TARGET, digits=0),
         field(
             "turbo_boost",
             packet_attr("turbo_boost"),
@@ -412,6 +412,7 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             packet_attr("current_gear"),
             CSV_TARGET,
             CONSOLE_TARGET,
+            ESP_TARGET,
             digits=0,
             esp_default=-1,
         ),

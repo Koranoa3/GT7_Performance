@@ -30,6 +30,9 @@ constexpr size_t kSectionPreviewPayloadSize = 5;
 
 constexpr float kSpeedFullScaleMps = 50.0f;
 constexpr float kMileageScale = 16.0f;
+constexpr uint32_t kGaugeAnimationPeriodMs = 600;
+constexpr uint8_t kGaugeAnimationMinBrightness = 40;
+constexpr uint8_t kGaugeAnimationMaxBrightness = 255;
 constexpr uint32_t kSectionPreviewDurationMs = 10000;
 
 constexpr uint8_t kFanPwmChannel = 0;
@@ -60,11 +63,11 @@ constexpr uint8_t kFanIdleDuty = (1u << kFanPwmResolutionBits) - 1u;
 #endif
 
 #ifndef GT7_BASE_LED_COUNT
-#define GT7_BASE_LED_COUNT 60
+#define GT7_BASE_LED_COUNT 300
 #endif
 
 #ifndef GT7_MONITOR_LED_COUNT
-#define GT7_MONITOR_LED_COUNT 60
+#define GT7_MONITOR_LED_COUNT 300
 #endif
 
 #ifndef GT7_FAN_PWM_PIN
