@@ -10,12 +10,12 @@ namespace gt7
 {
 uint16_t LedRenderer::segmentLength(const Segment &segment)
 {
-  return segment.end > segment.start ? segment.end - segment.start : segment.start - segment.end;
+  return segment.end >= segment.start ? (segment.end - segment.start + 1) : (segment.start - segment.end + 1);
 }
 
 uint16_t LedRenderer::segmentIndex(const Segment &segment, uint16_t offset)
 {
-  return segment.end >= segment.start ? segment.start + offset : segment.start - 1 - offset;
+  return segment.end >= segment.start ? static_cast<uint16_t>(segment.start + offset) : static_cast<uint16_t>(segment.start - offset);
 }
 
 uint16_t LedRenderer::clampIndex(uint16_t index, uint16_t led_count)
