@@ -144,6 +144,11 @@ class TelemetrySnapshot:
     def has(self, name: str) -> bool:
         return name in self.values
 
+    def with_values(self, **extra_values: Any) -> "TelemetrySnapshot":
+        values = dict(self.values)
+        values.update(extra_values)
+        return TelemetrySnapshot(values=values, warnings=self.warnings)
+
 
 class TelemetryResolveContext:
     def __init__(self, packet: Any, fields_by_name: dict[str, TelemetryFieldDefinition]) -> None:
@@ -339,16 +344,12 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "velocity_x", # east
             packet_attr("velocity", "x"),
             CSV_TARGET,
-            CONSOLE_TARGET,
-            ESP_TARGET,
             digits=3,
             esp_default=0.0,
         ),
         field(
             "velocity_y", # up
             packet_attr("velocity", "y"),
-            CSV_TARGET,
-            ESP_TARGET,
             digits=3,
             esp_default=0.0,
         ),
@@ -356,40 +357,39 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "velocity_z", # south
             packet_attr("velocity", "z"),
             CSV_TARGET,
-            CONSOLE_TARGET,
-            ESP_TARGET,
             digits=3,
             esp_default=0.0,
         ),
         field(
             "angular_velocity_x",
             packet_attr("angular_velocity", "x"),
-            CSV_TARGET,
-            CONSOLE_TARGET,
             digits=3,
         ),
         field(
             "angular_velocity_y",
             packet_attr("angular_velocity", "y"),
-            CSV_TARGET,
-            CONSOLE_TARGET,
             digits=3,
         ),
         field(
             "angular_velocity_z",
             packet_attr("angular_velocity", "z"),
-            CSV_TARGET,
-            CONSOLE_TARGET,
             digits=3,
         ),
         field("rotation_yaw", packet_attr("rotation", "yaw"), CSV_TARGET, digits=3),
-        field("orientation", packet_attr("orientation"), CSV_TARGET, CONSOLE_TARGET, digits=3), # asin(orientation)*2 = -180~180 | 0=north, 90=west, 180=south, -90=east
+        field("orientation", packet_attr("orientation"), digits=3), # asin(orientation)*2 = -180~180 | 0=north, 90=west, 180=south, -90=east
         field("direction", computed_value(_direction_value), CSV_TARGET, CONSOLE_TARGET, digits=0), # -180~180 | 0=north, 90=west, +-180=south, -90=east
-        field("velocity_forward", computed_value(_velocity_forward_value), CSV_TARGET, CONSOLE_TARGET, digits=3), # local forward (+) / backward (-)
-        field("velocity_right", computed_value(_velocity_right_value), CSV_TARGET, CONSOLE_TARGET, digits=3), # local right (+) / left (-)
+        field("velocity_forward", computed_value(_velocity_forward_value), CSV_TARGET, digits=3), # local forward (+) / backward (-)
+        field(
+            "velocity_right",
+            computed_value(_velocity_right_value),
+            CSV_TARGET,
+            ESP_TARGET,
+            digits=3,
+            esp_default=0.0,
+        ), # local right (+) / left (-)
         field("engine_rpm", packet_attr("engine_rpm"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0.0),
-        field("rpm_alert_min", packet_attr("rpm_alert", "min"), CSV_TARGET, digits=0),
-        field("rpm_alert_max", packet_attr("rpm_alert", "max"), CSV_TARGET, digits=0),
+        field("rpm_alert_min", packet_attr("rpm_alert", "min"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0.0),
+        field("rpm_alert_max", packet_attr("rpm_alert", "max"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0.0),
         field(
             "throttle", # 255
             packet_attr("throttle"),
@@ -404,8 +404,6 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "turbo_boost",
             packet_attr("turbo_boost"),
             CSV_TARGET,
-            CONSOLE_TARGET,
-            ESP_TARGET,
             digits=3,
             esp_default=0.0,
         ),
@@ -414,14 +412,14 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             packet_attr("current_gear"),
             CSV_TARGET,
             CONSOLE_TARGET,
-            ESP_TARGET,
             digits=0,
             esp_default=-1,
         ),
-        field("lap_count", packet_attr("lap_count"), CSV_TARGET, CONSOLE_TARGET, ESP_TARGET, esp_default=-1),
+        field("lap_count", packet_attr("lap_count"), CSV_TARGET, CONSOLE_TARGET, esp_default=-1),
         field("laps_in_race", packet_attr("laps_in_race"), CSV_TARGET, digits=0),
-        field("last_lap_time", packet_attr("last_lap_time"), CSV_TARGET, ESP_TARGET, esp_default=-1),
+        field("last_lap_time", packet_attr("last_lap_time"), esp_default=-1),
         field("paused", packet_attr("flags", "paused"), CSV_TARGET),
-        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET)
+        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET),
+        field("play_state", generated_value(lambda: 0), ESP_TARGET, digits=0, esp_default=0),
     ]
 )

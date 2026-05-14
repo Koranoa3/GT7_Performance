@@ -13,15 +13,26 @@ class FrameType(IntEnum):
     BIND = 4
     EVENT = 5
     ACK = 6
+    SECTION_PREVIEW = 7
 
 
 MAGIC = b"G7"
 VERSION = 1
 HEADER = struct.Struct("<2sBBBBHHH")
-TELEMETRY = struct.Struct("<ffbBB?ffffhhii")
+TELEMETRY = struct.Struct("<ffffBBfB")
 EVENT = struct.Struct("<BB")
+SECTION_PREVIEW = struct.Struct("<BHH")
 
-EVENT_GEAR_CHANGED = 1
+EVENT_COLLISION = 1
+EVENT_LAP = 2
+
+LED_STRIP_BASE = 0
+LED_STRIP_MONITOR = 1
+
+LAP_EVENT_PREPARE = 0
+LAP_EVENT_START = 1
+LAP_EVENT_PASS = 2
+LAP_EVENT_FINISH = 3
 
 
 class FrameParser:
@@ -73,18 +84,12 @@ def build_telemetry_payload(values: Mapping[str, Any]) -> bytes:
     return TELEMETRY.pack(
         _float(values, "car_speed"),
         _float(values, "engine_rpm"),
-        _int(values, "current_gear", -1),
+        _float(values, "rpm_alert_min"),
+        _float(values, "rpm_alert_max"),
         _int(values, "throttle"),
         _int(values, "brake"),
-        bool(values.get("in_race", False)),
-        _float(values, "turbo_boost"),
-        _float(values, "velocity_x"),
-        _float(values, "velocity_y"),
-        _float(values, "velocity_z"),
-        _int(values, "lap_count", -1),
-        _int(values, "cars_in_race", -1),
-        _int(values, "best_lap_time", -1),
-        _int(values, "last_lap_time", -1),
+        _float(values, "velocity_right"),
+        _int(values, "play_state"),
     )
 
 
@@ -94,3 +99,7 @@ def build_bind_payload(ps5_ip: str) -> bytes:
 
 def build_event_payload(event_id: int, value: int) -> bytes:
     return EVENT.pack(event_id & 0xFF, value & 0xFF)
+
+
+def build_section_preview_payload(strip_id: int, start_index: int, end_index: int) -> bytes:
+    return SECTION_PREVIEW.pack(strip_id & 0xFF, start_index & 0xFFFF, end_index & 0xFFFF)
