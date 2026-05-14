@@ -297,8 +297,10 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
   fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
 
-  speedAnimation(telemetry, base_leds_, base_left_.start, base_right_.end, speed_mileage_);
-  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start, monitor_bottom_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, base_left_.start, base_left_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, base_right_.start, base_right_.end, speed_mileage_);;
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start+segmentLength(monitor_bottom_)/2, monitor_bottom_.start, speed_mileage_);
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.end-segmentLength(monitor_bottom_)/2, monitor_bottom_.end, speed_mileage_);
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
   gaugeAnimation(base_leds_, rail_right_.start, rail_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);

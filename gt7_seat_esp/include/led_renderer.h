@@ -39,11 +39,11 @@ private:
   Segment rail_left_{base_leds_, 196, 249};
   Segment rail_right_{base_leds_, 50, 0};
 
-    Segment monitor_ripple_left_{monitor_leds_, 0, 51};
-    Segment monitor_ripple_right_{monitor_leds_, 52, 102};
-    Segment monitor_left_{monitor_leds_,102, 76};
-    Segment monitor_right_{monitor_leds_, 0, 26};
-    Segment monitor_bottom_{monitor_leds_, 27, 75};
+  Segment monitor_ripple_left_{monitor_leds_, 0, 51};
+  Segment monitor_ripple_right_{monitor_leds_, 52, 102};
+  Segment monitor_left_{monitor_leds_,102, 76};
+  Segment monitor_right_{monitor_leds_, 0, 26};
+  Segment monitor_bottom_{monitor_leds_, 27, 75};
 
   uint32_t last_led_render_ms_ = 0;
   uint32_t last_animation_ms_ = 0;
