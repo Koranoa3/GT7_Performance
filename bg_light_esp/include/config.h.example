@@ -1,0 +1,18 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// ===== User Settings =====
+#define BRIGHTNESS 80
+
+#define BG_LIGHT_LEFT_LED_PIN 26
+#define BG_LIGHT_RIGHT_LED_PIN 27
+
+#define BG_LIGHT_LEFT_LED_COUNT 300
+#define BG_LIGHT_RIGHT_LED_COUNT 300
+
+// Brightness profile:
+// max(0, min(40, BG_LIGHT_WAVE_DISTANCE_OFFSET - d * BG_LIGHT_WAVE_DISTANCE_FACTOR))
+#define BG_LIGHT_WAVE_DISTANCE_OFFSET 40.0f
+#define BG_LIGHT_WAVE_DISTANCE_FACTOR 160.0f
+
+#endif  // CONFIG_H

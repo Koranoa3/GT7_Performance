@@ -1,18 +1,19 @@
 #include <Arduino.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#include "background_light_controller.h"
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+namespace
+{
+bg_light::BackgroundLightController controller;
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void setup()
+{
+  controller.setup();
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+void loop()
+{
+  controller.loop();
+  delay(1);
 }
