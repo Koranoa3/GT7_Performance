@@ -277,6 +277,7 @@ class EspTelemetryDirector:
         return 1
 
     def _speed_is_stale(self, snapshot: TelemetrySnapshot) -> bool:
+        return False # !FORCE
         speed = snapshot.get("car_speed")
         if speed is None:
             return True
