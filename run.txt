@@ -1,0 +1,4 @@
+
+.\gt7_hub_pc\.venv\Scripts\python.exe .\gt7_hub_pc\main.py 0.0.0.0 --auto-bind
+
+.\gt7_hub_pc\.venv\Scripts\python.exe .\gt7_hub_pc\adjustment.py
