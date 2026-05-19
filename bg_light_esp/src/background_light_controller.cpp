@@ -130,11 +130,7 @@ void BackgroundLightController::loop()
   light_point_ratio_ = wrap01(light_point_ratio_ + delta_seconds * config::kLightPointSpeedRatioPerSecond);
 
   renderStrip(left_leds_, BG_LIGHT_LEFT_LED_COUNT, hue_phase_ratio_, light_point_ratio_, false);
-  renderStrip(right_leds_,
-              BG_LIGHT_RIGHT_LED_COUNT,
-              wrap01(hue_phase_ratio_ + config::kRightStripHueOffsetRatio),
-              wrap01(light_point_ratio_ + config::kRightStripLightPointOffsetRatio),
-              true);
+  renderStrip(right_leds_, BG_LIGHT_RIGHT_LED_COUNT, hue_phase_ratio_, light_point_ratio_, false);
 
   FastLED.show();
 }
