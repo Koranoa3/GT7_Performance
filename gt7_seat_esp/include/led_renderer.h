@@ -32,18 +32,18 @@ private:
   CRGB base_leds_[GT7_BASE_LED_COUNT] = {};
   CRGB monitor_leds_[GT7_MONITOR_LED_COUNT] = {};
 
-  Segment base_ripple_left_{base_leds_, 0, 140};
-  Segment base_ripple_right_{base_leds_, 141, 280};
-  Segment base_left_{base_leds_, 195, 131};
-  Segment base_right_{base_leds_, 51, 130};
-  Segment rail_left_{base_leds_, 196, 249};
-  Segment rail_right_{base_leds_, 50, 0};
+  Segment base_ripple_left_{base_leds_, 105, 3};
+  Segment base_ripple_right_{base_leds_, 199, 106};
+  Segment rail_right_{base_leds_, 3, 48};
+  Segment base_right_{base_leds_, 105, 57};
+  Segment base_left_{base_leds_, 106, 146};
+  Segment rail_left_{base_leds_, 199, 155};
 
-  Segment monitor_ripple_left_{monitor_leds_, 0, 51};
-  Segment monitor_ripple_right_{monitor_leds_, 52, 102};
-  Segment monitor_left_{monitor_leds_,102, 76};
-  Segment monitor_right_{monitor_leds_, 0, 26};
-  Segment monitor_bottom_{monitor_leds_, 27, 75};
+  Segment monitor_ripple_left_{monitor_leds_, 0, 69};
+  Segment monitor_ripple_right_{monitor_leds_, 70, 135};
+  Segment monitor_left_{monitor_leds_,135, 102};
+  Segment monitor_right_{monitor_leds_, 0, 33};
+  Segment monitor_bottom_{monitor_leds_, 39, 96};
 
   uint32_t last_led_render_ms_ = 0;
   uint32_t last_animation_ms_ = 0;
