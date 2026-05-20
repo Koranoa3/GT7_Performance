@@ -224,8 +224,8 @@ def build_telemetry_source(ip_address: str, log_trace_path: Optional[Path]) -> T
     return RecoveringTelemetrySource(ip_address)
 
 
-def build_telemetry_sink(output_path: Path, trace_mode: bool) -> TelemetrySink:
-    if trace_mode:
+def build_telemetry_sink(output_path: Path, trace_mode: bool, record_enabled: bool) -> TelemetrySink:
+    if trace_mode or not record_enabled:
         return NullTelemetrySink()
     return TelemetryCsvSink(output_path, flush_every=10)
 
@@ -277,6 +277,7 @@ class EspTelemetryDirector:
         return 1
 
     def _speed_is_stale(self, snapshot: TelemetrySnapshot) -> bool:
+        return False # !FORCE
         speed = snapshot.get("car_speed")
         if speed is None:
             return True
@@ -387,8 +388,10 @@ def run(config: RuntimeLaunchConfig) -> int:
     console.log(f"接続先PS5: {config.ip_address}")
     if config.trace_mode:
         console.log("トレース再生モード: CSV出力は行いません。")
-    else:
+    elif config.record_enabled:
         console.log(f"CSV出力先: {config.output_path}")
+    else:
+        console.log("CSV記録: 無効（`--record` で有効化）")
     console.log("終了するには Ctrl+C を押してください。")
 
     rows_written = 0
@@ -408,7 +411,7 @@ def run(config: RuntimeLaunchConfig) -> int:
         for message in esp_manager.drain_messages():
             console.log(message)
 
-        with build_telemetry_sink(config.output_path, config.trace_mode) as sink:
+        with build_telemetry_sink(config.output_path, config.trace_mode, config.record_enabled) as sink:
             console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
             last_drain_at = time.monotonic()
 
@@ -429,7 +432,8 @@ def run(config: RuntimeLaunchConfig) -> int:
                 snapshot = TELEMETRY_LAYOUT.resolve_packet(packet)
                 log_snapshot_warnings(console, snapshot.warnings, warning_keys)
                 sink.write_snapshot(snapshot)
-                rows_written += 1
+                if config.record_enabled and not config.trace_mode:
+                    rows_written += 1
                 console.status_from_snapshot(snapshot)
                 now = time.monotonic()
                 events = esp_director.update(snapshot, now)
@@ -443,7 +447,7 @@ def run(config: RuntimeLaunchConfig) -> int:
                         console.log(msg)
                     last_drain_at = now
 
-                if not config.trace_mode and (rows_written == 1 or rows_written % 100 == 0):
+                if config.record_enabled and not config.trace_mode and (rows_written == 1 or rows_written % 100 == 0):
                     console.log(f"{rows_written}行を記録しました。")
 
     except KeyboardInterrupt:
@@ -458,7 +462,7 @@ def run(config: RuntimeLaunchConfig) -> int:
         source.close()
         console.finish()
 
-    if not config.trace_mode:
+    if config.record_enabled and not config.trace_mode:
         print(f"CSV保存完了: {config.output_path}")
     return 0
 

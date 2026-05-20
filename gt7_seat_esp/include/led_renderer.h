@@ -32,18 +32,18 @@ private:
   CRGB base_leds_[GT7_BASE_LED_COUNT] = {};
   CRGB monitor_leds_[GT7_MONITOR_LED_COUNT] = {};
 
-  Segment base_ripple_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 2};
-  Segment base_ripple_right_{base_leds_, GT7_BASE_LED_COUNT / 2, GT7_BASE_LED_COUNT};
-  Segment base_left_{base_leds_, 0, GT7_BASE_LED_COUNT / 4};
-  Segment base_right_{base_leds_, GT7_BASE_LED_COUNT / 4, GT7_BASE_LED_COUNT / 2};
-  Segment rail_left_{base_leds_, GT7_BASE_LED_COUNT / 2, (GT7_BASE_LED_COUNT * 3) / 4};
-  Segment rail_right_{base_leds_, (GT7_BASE_LED_COUNT * 3) / 4, GT7_BASE_LED_COUNT};
+  Segment base_ripple_left_{base_leds_, 0, 140};
+  Segment base_ripple_right_{base_leds_, 141, 280};
+  Segment base_left_{base_leds_, 195, 131};
+  Segment base_right_{base_leds_, 51, 130};
+  Segment rail_left_{base_leds_, 196, 249};
+  Segment rail_right_{base_leds_, 50, 0};
 
-  Segment monitor_ripple_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 2};
-  Segment monitor_ripple_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 2, GT7_MONITOR_LED_COUNT};
-  Segment monitor_left_{monitor_leds_, 0, GT7_MONITOR_LED_COUNT / 3};
-  Segment monitor_right_{monitor_leds_, GT7_MONITOR_LED_COUNT / 3, (GT7_MONITOR_LED_COUNT * 2) / 3};
-  Segment monitor_bottom_{monitor_leds_, (GT7_MONITOR_LED_COUNT * 2) / 3, GT7_MONITOR_LED_COUNT};
+  Segment monitor_ripple_left_{monitor_leds_, 0, 51};
+  Segment monitor_ripple_right_{monitor_leds_, 52, 102};
+  Segment monitor_left_{monitor_leds_,102, 76};
+  Segment monitor_right_{monitor_leds_, 0, 26};
+  Segment monitor_bottom_{monitor_leds_, 27, 75};
 
   uint32_t last_led_render_ms_ = 0;
   uint32_t last_animation_ms_ = 0;
@@ -57,8 +57,9 @@ private:
   static void fillSegment(const Segment &segment, const CRGB &color);
   static void fillInclusiveRange(CRGB leds[], uint16_t led_count, uint16_t start_index, uint16_t end_index, const CRGB &color);
   static void fillRatioRange(const Segment &segment, float from_ratio, float to_ratio, const CRGB &color);
+  static CRGB gaugeColorForGear(int8_t current_gear);
 
-  void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const;
+  void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const;
   void speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const;
   void rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end) const;
   void whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const;

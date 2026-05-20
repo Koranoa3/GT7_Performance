@@ -104,11 +104,65 @@ void LedRenderer::previewSection(uint8_t strip_id, uint16_t start_index, uint16_
   preview_.expires_at_ms = millis() + duration_ms;
 }
 
-void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const
+CRGB LedRenderer::gaugeColorForGear(int8_t current_gear)
+{
+  switch (current_gear)
+  {
+    case 1:
+      return CRGB(220, 220, 50);
+    case 2:
+      return CRGB(145, 240, 54);
+    case 3:
+      return CRGB(50, 190, 255);
+    case 4:
+      return CRGB(180, 255, 255);
+    default:
+      return CRGB::White;
+  }
+}
+
+void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const
 {
   const Segment segment{leds, start, end};
   fillSegment(segment, CRGB::Black);
-  fillRatioRange(segment, 0.0f, constrain(value, 0.0f, 1.0f), CRGB::White);
+
+  const uint16_t length = segmentLength(segment);
+  if (length == 0)
+  {
+    return;
+  }
+
+  const float clamped_value = constrain(value, 0.0f, 1.0f);
+  uint16_t active_length = static_cast<uint16_t>(clamped_value * length + 0.5f);
+  if (clamped_value > 0.0f && active_length == 0)
+  {
+    active_length = 1;
+  }
+  if (active_length > length)
+  {
+    active_length = length;
+  }
+  if (active_length == 0)
+  {
+    return;
+  }
+
+  const CRGB base_color = gaugeColorForGear(current_gear);
+  const float phase = fmodf(static_cast<float>(millis()) / static_cast<float>(config::kGaugeAnimationPeriodMs), 1.0f);
+  const float brightness_span = static_cast<float>(config::kGaugeAnimationMaxBrightness - config::kGaugeAnimationMinBrightness);
+
+  for (uint16_t i = 0; i < active_length; ++i)
+  {
+    float x = (static_cast<float>(i) / static_cast<float>(active_length)) - phase;
+    x = x - floorf(x);
+    const float wave = 1.0f - fabsf((x * 2.0f) - 1.0f);
+    const uint8_t brightness = static_cast<uint8_t>(
+        config::kGaugeAnimationMinBrightness + (wave * wave) * brightness_span);
+
+    CRGB color = base_color;
+    color.nscale8_video(brightness);
+    segment.leds[segmentIndex(segment, i)] = color;
+  }
 }
 
 void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const
@@ -126,7 +180,7 @@ void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], u
 
   for (uint16_t i = 0; i < length; ++i)
   {
-    float x = (static_cast<float>(i) / static_cast<float>(length)) + phase;
+    float x = (static_cast<float>(i) / static_cast<float>(length)) - phase;
     x = x - floorf(x);
     const float wave = 1.0f - fabsf((x * 2.0f) - 1.0f);
     const uint8_t brightness = static_cast<uint8_t>((wave * wave) * base_brightness);
@@ -174,7 +228,7 @@ void LedRenderer::whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end
 void LedRenderer::collisionBlinkAnimation(CRGB leds[], uint16_t start, uint16_t end, uint32_t elapsed_ms) const
 {
   const Segment segment{leds, start, end};
-  const uint8_t brightness = static_cast<uint8_t>((300 - (elapsed_ms % 300)) * 0.2f);
+  const uint8_t brightness = static_cast<uint8_t>((300 - (elapsed_ms % 300)) * 0.8f);
   fillSegment(segment, CRGB(brightness, 0, 0));
 }
 
@@ -243,12 +297,14 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
   fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
 
-  speedAnimation(telemetry, base_leds_, base_left_.start, base_right_.end, speed_mileage_);
-  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start, monitor_bottom_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, base_left_.start, base_left_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, base_right_.start, base_right_.end, speed_mileage_);;
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start+segmentLength(monitor_bottom_)/2, monitor_bottom_.start, speed_mileage_);
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.end-segmentLength(monitor_bottom_)/2, monitor_bottom_.end, speed_mileage_);
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
-  gaugeAnimation(base_leds_, rail_right_.start, rail_right_.end, telemetry.throttle / 255.0f);
-  gaugeAnimation(base_leds_, rail_left_.start, rail_left_.end, telemetry.brake / 255.0f);
+  gaugeAnimation(base_leds_, rail_right_.start, rail_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
+  gaugeAnimation(base_leds_, rail_left_.start, rail_left_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
 
   if (lap_flash_active)
   {
