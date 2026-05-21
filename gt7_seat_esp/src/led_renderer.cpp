@@ -241,6 +241,13 @@ void LedRenderer::whiteFlashAnimation(CRGB leds[], uint16_t start, uint16_t end,
   fillSegment(segment, (elapsed_ms % 150) < 75 ? CRGB::White : CRGB::Black);
 }
 
+void LedRenderer::renderSleep()
+{
+  fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
+  fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
+  idle_ripple_prev_ = 0.0f;
+}
+
 void LedRenderer::renderIdle()
 {
   fadeToBlackBy(base_leds_, GT7_BASE_LED_COUNT, 80);
@@ -320,8 +327,8 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   }
 }
 
-void LedRenderer::update(const TelemetryState &telemetry,
-                         bool race_active,
+void LedRenderer::update(AnimationStatus animation_status,
+                         const TelemetryState &telemetry,
                          bool collision_active,
                          uint32_t collision_elapsed_ms,
                          bool lap_flash_active,
@@ -349,13 +356,17 @@ void LedRenderer::update(const TelemetryState &telemetry,
     speed_mileage_ = fmodf(speed_mileage_, 360.0f);
   }
 
-  if (race_active)
+  if (animation_status == AnimationStatus::Race)
   {
     renderRace(telemetry, collision_active, collision_elapsed_ms, lap_flash_active, lap_flash_elapsed_ms);
   }
-  else
+  else if (animation_status == AnimationStatus::Idle)
   {
     renderIdle();
+  }
+  else
+  {
+    renderSleep();
   }
 
   FastLED.show();

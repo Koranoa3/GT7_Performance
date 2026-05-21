@@ -31,6 +31,7 @@ private:
   bool telemetryIsFresh() const;
   bool raceIsActive() const;
   bool linkIsHealthy() const;
+  AnimationStatus animationStatus() const;
   bool collisionIsActive(uint32_t now) const;
   bool lapFlashIsActive(uint32_t now) const;
 

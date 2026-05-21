@@ -30,6 +30,13 @@ enum PlayState : uint8_t
   PlayRace = 1,
 };
 
+enum class AnimationStatus : uint8_t
+{
+  Sleep = 0,
+  Idle = 1,
+  Race = 2,
+};
+
 enum LedStripId : uint8_t
 {
   LedStripBase = 0,

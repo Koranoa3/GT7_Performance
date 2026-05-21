@@ -12,8 +12,8 @@ class LedRenderer
 public:
   void setup();
   void previewSection(uint8_t strip_id, uint16_t start_index, uint16_t end_index, uint32_t duration_ms = config::kSectionPreviewDurationMs);
-  void update(const TelemetryState &telemetry,
-              bool race_active,
+  void update(AnimationStatus animation_status,
+              const TelemetryState &telemetry,
               bool collision_active,
               uint32_t collision_elapsed_ms,
               bool lap_flash_active,
@@ -67,6 +67,7 @@ private:
   void collisionBlinkAnimation(CRGB leds[], uint16_t start, uint16_t end, uint32_t elapsed_ms) const;
   void whiteFlashAnimation(CRGB leds[], uint16_t start, uint16_t end, uint32_t elapsed_ms) const;
 
+  void renderSleep();
   void renderIdle();
   bool renderPreview(uint32_t now);
   void renderRace(const TelemetryState &telemetry,
