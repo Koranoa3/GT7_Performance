@@ -58,6 +58,7 @@ private:
   static void fillInclusiveRange(CRGB leds[], uint16_t led_count, uint16_t start_index, uint16_t end_index, const CRGB &color);
   static void fillRatioRange(const Segment &segment, float from_ratio, float to_ratio, const CRGB &color);
   static CRGB gaugeColorForGear(int8_t current_gear);
+  static void animatedGaugeFill(const Segment &segment, float value, const CRGB &base_color);
 
   void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const;
   void speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const;

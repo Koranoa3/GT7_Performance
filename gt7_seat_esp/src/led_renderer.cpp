@@ -121,9 +121,8 @@ CRGB LedRenderer::gaugeColorForGear(int8_t current_gear)
   }
 }
 
-void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const
+void LedRenderer::animatedGaugeFill(const Segment &segment, float value, const CRGB &base_color)
 {
-  const Segment segment{leds, start, end};
   fillSegment(segment, CRGB::Black);
 
   const uint16_t length = segmentLength(segment);
@@ -147,7 +146,6 @@ void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, floa
     return;
   }
 
-  const CRGB base_color = gaugeColorForGear(current_gear);
   const float phase = fmodf(static_cast<float>(millis()) / static_cast<float>(config::kGaugeAnimationPeriodMs), 1.0f);
   const float brightness_span = static_cast<float>(config::kGaugeAnimationMaxBrightness - config::kGaugeAnimationMinBrightness);
 
@@ -163,6 +161,12 @@ void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, floa
     color.nscale8_video(brightness);
     segment.leds[segmentIndex(segment, i)] = color;
   }
+}
+
+void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const
+{
+  const Segment segment{leds, start, end};
+  animatedGaugeFill(segment, value, gaugeColorForGear(current_gear));
 }
 
 void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const
@@ -201,8 +205,7 @@ void LedRenderer::rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uin
   }
   if (alert_min / 2.0f <= telemetry.engine_rpm and telemetry.engine_rpm <= alert_min)
   {
-    fillSegment(segment, CRGB::Black);
-    fillRatioRange(segment, 0.0f, (telemetry.engine_rpm-alert_min/2)/(alert_min/2), CRGB::Cyan);
+    animatedGaugeFill(segment, (telemetry.engine_rpm - alert_min / 2.0f) / (alert_min / 2.0f), CRGB::Cyan);
     return;
   }
 
