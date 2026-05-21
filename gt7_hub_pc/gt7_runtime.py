@@ -268,12 +268,23 @@ class EspTelemetryDirector:
 
     def _resolve_play_state(self, snapshot: TelemetrySnapshot) -> int:
         paused = bool(snapshot.get("paused", False))
-        car_on_track = bool(snapshot.get("car_on_track", True))
-        lap_count = snapshot.get("lap_count")
+        laps_in_race = snapshot.get("laps_in_race")
         same_speed = self._speed_is_stale(snapshot)
 
-        if paused or not car_on_track or same_speed or lap_count is None:
+        if paused or same_speed:
             return 0
+
+        if laps_in_race is None:
+            return 0
+
+        try:
+            total_laps = int(laps_in_race)
+        except (TypeError, ValueError):
+            return 0
+
+        if total_laps <= 0:
+            return 0
+
         return 1
 
     def _speed_is_stale(self, snapshot: TelemetrySnapshot) -> bool:

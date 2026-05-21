@@ -394,7 +394,6 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "throttle", # 255
             packet_attr("throttle"),
             CSV_TARGET,
-            CONSOLE_TARGET,
             ESP_TARGET,
             digits=0,
             esp_default=0,
@@ -411,16 +410,15 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "current_gear",
             packet_attr("current_gear"),
             CSV_TARGET,
-            CONSOLE_TARGET,
             ESP_TARGET,
             digits=0,
             esp_default=-1,
         ),
         field("lap_count", packet_attr("lap_count"), CSV_TARGET, CONSOLE_TARGET, esp_default=-1),
-        field("laps_in_race", packet_attr("laps_in_race"), CSV_TARGET, digits=0),
+        field("laps_in_race", packet_attr("laps_in_race"), CSV_TARGET, CONSOLE_TARGET, digits=0),
         field("last_lap_time", packet_attr("last_lap_time"), esp_default=-1),
-        field("paused", packet_attr("flags", "paused"), CSV_TARGET),
-        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET),
-        field("play_state", generated_value(lambda: 0), ESP_TARGET, digits=0, esp_default=0),
+        field("paused", packet_attr("flags", "paused"), CSV_TARGET, CONSOLE_TARGET),
+        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET, CONSOLE_TARGET),
+        field("play_state", generated_value(lambda: 0), ESP_TARGET, CONSOLE_TARGET, digits=0, esp_default=0),
     ]
 )
