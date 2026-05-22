@@ -289,10 +289,9 @@ def _heading_components(context: TelemetryResolveContext) -> tuple[float, float,
         if rotation_yaw is _MISSING:
             return (_MISSING, _MISSING, _MISSING)
 
-        direction = 90 - _orientation_to_direction(float(rotation_yaw))
-        new_direction = (180.0 - direction) % 360.0
-        radians = math.radians(new_direction)
-        return (new_direction, math.sin(radians), math.cos(radians))
+        direction = (90.0 + _orientation_to_direction(float(rotation_yaw))) % 360.0
+        radians = math.radians(direction)
+        return (direction, math.sin(radians), math.cos(radians))
 
     return context.memoize("heading_components", compute)
 
@@ -400,7 +399,7 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             digits=0,
             esp_default=0,
         ),
-        field("brake", packet_attr("brake"), CSV_TARGET, digits=0),
+        field("brake", packet_attr("brake"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0),
         field(
             "turbo_boost",
             packet_attr("turbo_boost"),
