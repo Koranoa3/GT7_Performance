@@ -289,7 +289,7 @@ def _heading_components(context: TelemetryResolveContext) -> tuple[float, float,
         if rotation_yaw is _MISSING:
             return (_MISSING, _MISSING, _MISSING)
 
-        direction = 90 - _orientation_to_direction(float(rotation_yaw))
+        direction = (90.0 + _orientation_to_direction(float(rotation_yaw))) % 360.0
         radians = math.radians(direction)
         return (direction, math.sin(radians), math.cos(radians))
 
@@ -311,7 +311,7 @@ def _velocity_forward_value(context: TelemetryResolveContext) -> Any:
     if sin_value is _MISSING or cos_value is _MISSING:
         return _MISSING
 
-    return (-float(velocity_x) * cos_value) + (-float(velocity_z) * sin_value)
+    return (float(velocity_x) * cos_value) - (float(velocity_z) * sin_value)
 
 
 def _velocity_right_value(context: TelemetryResolveContext) -> Any:
@@ -324,7 +324,7 @@ def _velocity_right_value(context: TelemetryResolveContext) -> Any:
     if sin_value is _MISSING or cos_value is _MISSING:
         return _MISSING
 
-    return (float(velocity_x) * sin_value) - (float(velocity_z) * cos_value)
+    return (float(velocity_x) * sin_value) + (float(velocity_z) * cos_value)
 
 
 TELEMETRY_LAYOUT = TelemetryLayout(
@@ -378,11 +378,12 @@ TELEMETRY_LAYOUT = TelemetryLayout(
         field("rotation_yaw", packet_attr("rotation", "yaw"), CSV_TARGET, digits=3),
         field("orientation", packet_attr("orientation"), digits=3), # asin(orientation)*2 = -180~180 | 0=north, 90=west, 180=south, -90=east
         field("direction", computed_value(_direction_value), CSV_TARGET, CONSOLE_TARGET, digits=0), # -180~180 | 0=north, 90=west, +-180=south, -90=east
-        field("velocity_forward", computed_value(_velocity_forward_value), CSV_TARGET, digits=3), # local forward (+) / backward (-)
+        field("velocity_forward", computed_value(_velocity_forward_value), CSV_TARGET, CONSOLE_TARGET, digits=3), # local forward (+) / backward (-)
         field(
             "velocity_right",
             computed_value(_velocity_right_value),
             CSV_TARGET,
+            CONSOLE_TARGET,
             ESP_TARGET,
             digits=3,
             esp_default=0.0,
@@ -394,12 +395,11 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "throttle", # 255
             packet_attr("throttle"),
             CSV_TARGET,
-            CONSOLE_TARGET,
             ESP_TARGET,
             digits=0,
             esp_default=0,
         ),
-        field("brake", packet_attr("brake"), CSV_TARGET, digits=0),
+        field("brake", packet_attr("brake"), CSV_TARGET, ESP_TARGET, digits=0, esp_default=0),
         field(
             "turbo_boost",
             packet_attr("turbo_boost"),
@@ -411,16 +411,15 @@ TELEMETRY_LAYOUT = TelemetryLayout(
             "current_gear",
             packet_attr("current_gear"),
             CSV_TARGET,
-            CONSOLE_TARGET,
             ESP_TARGET,
             digits=0,
             esp_default=-1,
         ),
-        field("lap_count", packet_attr("lap_count"), CSV_TARGET, CONSOLE_TARGET, esp_default=-1),
+        field("lap_count", packet_attr("lap_count"), CSV_TARGET, esp_default=-1),
         field("laps_in_race", packet_attr("laps_in_race"), CSV_TARGET, digits=0),
         field("last_lap_time", packet_attr("last_lap_time"), esp_default=-1),
-        field("paused", packet_attr("flags", "paused"), CSV_TARGET),
-        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET),
+        field("paused", packet_attr("flags", "paused"), CSV_TARGET, CONSOLE_TARGET),
+        field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET, CONSOLE_TARGET),
         field("play_state", generated_value(lambda: 0), ESP_TARGET, digits=0, esp_default=0),
     ]
 )

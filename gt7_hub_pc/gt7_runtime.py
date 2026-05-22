@@ -268,12 +268,23 @@ class EspTelemetryDirector:
 
     def _resolve_play_state(self, snapshot: TelemetrySnapshot) -> int:
         paused = bool(snapshot.get("paused", False))
-        car_on_track = bool(snapshot.get("car_on_track", True))
-        lap_count = snapshot.get("lap_count")
+        laps_in_race = snapshot.get("laps_in_race")
         same_speed = self._speed_is_stale(snapshot)
 
-        if paused or not car_on_track or same_speed or lap_count is None:
+        if paused or same_speed:
             return 0
+
+        if laps_in_race is None:
+            return 0
+
+        try:
+            total_laps = int(laps_in_race)
+        except (TypeError, ValueError):
+            return 0
+
+        if total_laps <= 0:
+            return 0
+
         return 1
 
     def _speed_is_stale(self, snapshot: TelemetrySnapshot) -> bool:
@@ -401,30 +412,74 @@ def run(config: RuntimeLaunchConfig) -> int:
     source = build_telemetry_source(config.ip_address, config.log_trace_path)
     source.start()
     receiver = TelemetryReceiver(source)
+    esp_manager_running = False
+    esp_reconnect_wait_logged = False
+    next_esp_restart_check_at = 0.0
 
     for ps5_ip, esp_id in config.bindings:
         esp_manager.bind(ps5_ip, esp_id)
 
-    try:
-        esp_manager.start()
-        receiver.start()
+    def drain_esp_messages() -> None:
         for message in esp_manager.drain_messages():
             console.log(message)
+
+    def refresh_esp_bridge(now: float) -> None:
+        nonlocal esp_manager_running, esp_reconnect_wait_logged, next_esp_restart_check_at
+
+        if esp_manager.consume_restart_request():
+            if esp_manager_running:
+                esp_manager.stop()
+                esp_manager_running = False
+                drain_esp_messages()
+                console.log("ESPのバインド解除を検知したため、ESPブリッジを停止しました。再接続を待機します。")
+            esp_reconnect_wait_logged = False
+            next_esp_restart_check_at = now + 1.0
+
+        if esp_manager_running or now < next_esp_restart_check_at:
+            return
+
+        next_esp_restart_check_at = now + 1.0
+        esp_manager.scan_ports(now=now, force=True)
+        if not esp_manager.has_open_links():
+            if not esp_reconnect_wait_logged:
+                console.log("ESPの再接続を待機しています...")
+                esp_reconnect_wait_logged = True
+            drain_esp_messages()
+            return
+
+        console.log("ESPの再接続を確認しました。ESPブリッジを再開します。")
+        esp_manager.start()
+        esp_manager_running = esp_manager.has_open_links()
+        if not esp_manager_running:
+            esp_manager.stop()
+            drain_esp_messages()
+            return
+        esp_reconnect_wait_logged = False
+        drain_esp_messages()
+
+    try:
+        esp_manager.start()
+        esp_manager_running = esp_manager.has_open_links()
+        if not esp_manager_running:
+            esp_manager.stop()
+            next_esp_restart_check_at = time.monotonic() + 1.0
+        receiver.start()
+        drain_esp_messages()
 
         with build_telemetry_sink(config.output_path, config.trace_mode, config.record_enabled) as sink:
             console.log("PS5への接続を開始しました。テレメトリ受信を待機しています...")
             last_drain_at = time.monotonic()
 
             while True:
+                now = time.monotonic()
+                refresh_esp_bridge(now)
                 packet = receiver.take_latest()
                 if receiver.error is not None:
                     raise receiver.error
 
                 if packet is None:
-                    now = time.monotonic()
                     if now - last_drain_at >= 1.0:
-                        for msg in esp_manager.drain_messages():
-                            console.log(msg)
+                        drain_esp_messages()
                         last_drain_at = now
                     time.sleep(0.001)
                     continue
@@ -435,16 +490,15 @@ def run(config: RuntimeLaunchConfig) -> int:
                 if config.record_enabled and not config.trace_mode:
                     rows_written += 1
                 console.status_from_snapshot(snapshot)
-                now = time.monotonic()
                 events = esp_director.update(snapshot, now)
                 esp_snapshot = snapshot.with_values(play_state=esp_director.play_state)
-                for event_id, value in events:
-                    esp_manager.submit_event(config.ip_address, event_id, value)
-                esp_manager.submit_telemetry(config.ip_address, esp_snapshot)
+                if esp_manager_running:
+                    for event_id, value in events:
+                        esp_manager.submit_event(config.ip_address, event_id, value)
+                    esp_manager.submit_telemetry(config.ip_address, esp_snapshot)
 
                 if now - last_drain_at >= 1.0:
-                    for msg in esp_manager.drain_messages():
-                        console.log(msg)
+                    drain_esp_messages()
                     last_drain_at = now
 
                 if config.record_enabled and not config.trace_mode and (rows_written == 1 or rows_written % 100 == 0):

@@ -24,6 +24,16 @@ bool SeatController::linkIsHealthy() const
          (now - last_telemetry_rx_ms_) <= config::kTelemetryTimeoutMs;
 }
 
+AnimationStatus SeatController::animationStatus() const
+{
+  if (!linkIsHealthy())
+  {
+    return AnimationStatus::Sleep;
+  }
+
+  return raceIsActive() ? AnimationStatus::Race : AnimationStatus::Idle;
+}
+
 bool SeatController::collisionIsActive(uint32_t now) const
 {
   return collision_started_ms_ != 0 && (now - collision_started_ms_) < config::kCollisionDurationMs;
@@ -149,9 +159,10 @@ void SeatController::handleTelemetry(const Frame &frame)
   telemetry_state_.rpm_alert_min = read_f32(8);
   telemetry_state_.rpm_alert_max = read_f32(12);
   telemetry_state_.throttle = payload[16];
-  telemetry_state_.current_gear = static_cast<int8_t>(payload[17]);
-  telemetry_state_.velocity_right = read_f32(18);
-  telemetry_state_.play_state = payload[22] == PlayRace ? PlayRace : PlayIdle;
+  telemetry_state_.brake = payload[17];
+  telemetry_state_.current_gear = static_cast<int8_t>(payload[18]);
+  telemetry_state_.velocity_right = read_f32(19);
+  telemetry_state_.play_state = payload[23] == PlayRace ? PlayRace : PlayIdle;
 
   hardware_.updateActuators(telemetry_state_, true);
 }
@@ -203,8 +214,9 @@ void SeatController::loop()
   sendPeriodicPing();
 
   const uint32_t now = millis();
-  led_renderer_.update(telemetry_state_,
-                       raceIsActive(),
+  const AnimationStatus current_animation_status = animationStatus();
+  led_renderer_.update(current_animation_status,
+                       telemetry_state_,
                        collisionIsActive(now),
                        now - collision_started_ms_,
                        lapFlashIsActive(now),

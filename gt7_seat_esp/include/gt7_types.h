@@ -30,6 +30,13 @@ enum PlayState : uint8_t
   PlayRace = 1,
 };
 
+enum class AnimationStatus : uint8_t
+{
+  Sleep = 0,
+  Idle = 1,
+  Race = 2,
+};
+
 enum LedStripId : uint8_t
 {
   LedStripBase = 0,
@@ -43,6 +50,7 @@ struct TelemetryState
   float rpm_alert_min = 0.0f;
   float rpm_alert_max = 0.0f;
   uint8_t throttle = 0;
+  uint8_t brake = 0;
   int8_t current_gear = -1;
   float velocity_right = 0.0f;
   uint8_t play_state = PlayIdle;
