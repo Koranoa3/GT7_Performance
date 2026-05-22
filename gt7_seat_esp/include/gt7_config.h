@@ -33,6 +33,8 @@ constexpr float kMileageScale = 32.0f;
 constexpr uint32_t kGaugeAnimationPeriodMs = 600;
 constexpr uint8_t kGaugeAnimationMinBrightness = 40;
 constexpr uint8_t kGaugeAnimationMaxBrightness = 255;
+constexpr float kGearGlowFlashBoost = 128.0f;
+constexpr float kGearGlowFlashDecayForce = 12.0f;
 constexpr uint32_t kSectionPreviewDurationMs = 10000;
 
 constexpr uint8_t kFanPwmChannel = 0;

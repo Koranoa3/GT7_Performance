@@ -110,6 +110,8 @@ CRGB LedRenderer::gaugeColorForGear(int8_t current_gear)
 {
   switch (current_gear)
   {
+    case 0:
+      return CRGB(255, 50, 50);
     case 1:
       return CRGB(220, 220, 50);
     case 2:
@@ -121,6 +123,40 @@ CRGB LedRenderer::gaugeColorForGear(int8_t current_gear)
     default:
       return CRGB::White;
   }
+}
+
+float LedRenderer::gearGlowPointForGear(int8_t current_gear)
+{
+  if (current_gear <= 1)
+  {
+    return 0.0f;
+  }
+  if (current_gear > 1 && current_gear < 5)
+  {
+    return static_cast<float>(current_gear-1) / 5.0f + 0.1f;
+  }
+  return 0.5f;
+}
+
+float LedRenderer::gearGlowBaseOffsetForGear(int8_t current_gear)
+{
+  if (current_gear > 0 && current_gear < 5)
+  {
+    return 0.0f;
+  }
+  if (current_gear == 0)
+  {
+    return 40.0f;
+  }
+  if (current_gear == 5)
+  {
+    return 40.0f;
+  }
+  if (current_gear >= 6)
+  {
+    return 80.0f;
+  }
+  return 0.0f;
 }
 
 void LedRenderer::animatedGaugeFill(const Segment &segment, float value, const CRGB &base_color)
@@ -169,6 +205,42 @@ void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, floa
 {
   const Segment segment{leds, start, end};
   animatedGaugeFill(segment, value, color);
+}
+
+void LedRenderer::gearGlowAnimation(const Segment &segment, int8_t current_gear) const
+{
+  fillSegment(segment, CRGB::Black);
+
+  const uint16_t length = segmentLength(segment);
+  if (length == 0 || current_gear < 0)
+  {
+    return;
+  }
+
+  const float glow_point = gearGlowPointForGear(current_gear);
+  const float offset = gearGlowBaseOffsetForGear(current_gear) + gear_offset_flash_;
+  const float center_index = glow_point * static_cast<float>(length - 1);
+  const float peak_brightness = constrain(127.0f + offset, 0.0f, 255.0f);
+  const float spread = 2.0f + offset * 0.07f;
+  const float reach = spread * 2.4f;
+  const CRGB base_color = gaugeColorForGear(current_gear);
+
+  for (uint16_t i = 0; i < length; ++i)
+  {
+    const float distance = fabsf(static_cast<float>(i) - center_index);
+    const float normalized = distance / reach;
+    if (normalized >= 1.0f)
+    {
+      continue;
+    }
+
+    const float falloff = (1.0f - normalized * normalized);
+    const uint8_t brightness = static_cast<uint8_t>(constrain(peak_brightness * falloff * falloff, 0.0f, 255.0f));
+
+    CRGB color = base_color;
+    color.nscale8_video(brightness);
+    segment.leds[segmentIndex(segment, i)] = color;
+  }
 }
 
 void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const
@@ -330,6 +402,7 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   speedAnimation(telemetry, base_leds_, rail_left_.start, rail_left_.end, speed_mileage_);
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
+  gearGlowAnimation(arm_bottom_, telemetry.current_gear);
   gaugeAnimation(arm_right_leds_, arm_right_.start, arm_right_.end, telemetry.throttle / 255.0f, CRGB::Aquamarine);
   gaugeAnimation(arm_left_leds_, arm_left_.start, arm_left_.end, telemetry.brake / 255.0f, CRGB::OrangeRed);
 
@@ -371,6 +444,25 @@ void LedRenderer::update(AnimationStatus animation_status,
   if (speed_mileage_ > 100000.0f)
   {
     speed_mileage_ = fmodf(speed_mileage_, 360.0f);
+  }
+
+  if (animation_status == AnimationStatus::Race)
+  {
+    if (last_gear_ >= 0 && telemetry.current_gear >= 0 && telemetry.current_gear != last_gear_)
+    {
+      gear_offset_flash_ = config::kGearGlowFlashBoost;
+    }
+    last_gear_ = telemetry.current_gear;
+    gear_offset_flash_ -= delta_seconds * gear_offset_flash_ * config::kGearGlowFlashDecayForce;
+    if (gear_offset_flash_ < 0.0f)
+    {
+      gear_offset_flash_ = 0.0f;
+    }
+  }
+  else
+  {
+    last_gear_ = telemetry.current_gear;
+    gear_offset_flash_ = 0.0f;
   }
 
   if (animation_status == AnimationStatus::Race)

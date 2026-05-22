@@ -36,10 +36,11 @@ private:
 
   Segment base_ripple_left_{base_leds_, 105, 1};
   Segment base_ripple_right_{base_leds_, 203, 106};
-  Segment rail_right_{base_leds_, 1, 48};
+  Segment rail_right_{base_leds_, 1, 46};
   Segment base_right_{base_leds_, 105, 57};
   Segment base_left_{base_leds_, 106, 146};
-  Segment rail_left_{base_leds_, 203, 155};
+  Segment rail_left_{base_leds_, 203, 159};
+  Segment arm_bottom_{base_leds_, 257, 278};
 
   Segment monitor_ripple_left_{monitor_leds_, 0, 67};
   Segment monitor_ripple_right_{monitor_leds_, 68, 135};
@@ -53,6 +54,8 @@ private:
   uint32_t last_animation_ms_ = 0;
   float speed_mileage_ = 0.0f;
   float idle_ripple_prev_ = 0.0f;
+  int8_t last_gear_ = -127;
+  float gear_offset_flash_ = 0.0f;
   PreviewState preview_;
 
   static uint16_t segmentLength(const Segment &segment);
@@ -62,9 +65,12 @@ private:
   static void fillInclusiveRange(CRGB leds[], uint16_t led_count, uint16_t start_index, uint16_t end_index, const CRGB &color);
   static void fillRatioRange(const Segment &segment, float from_ratio, float to_ratio, const CRGB &color);
   static CRGB gaugeColorForGear(int8_t current_gear);
+  static float gearGlowPointForGear(int8_t current_gear);
+  static float gearGlowBaseOffsetForGear(int8_t current_gear);
   static void animatedGaugeFill(const Segment &segment, float value, const CRGB &base_color);
 
   void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, const CRGB &color) const;
+  void gearGlowAnimation(const Segment &segment, int8_t current_gear) const;
   void speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const;
   void rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end) const;
   void whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const;
