@@ -314,7 +314,7 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
   gaugeAnimation(base_leds_, rail_right_.start, rail_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
-  gaugeAnimation(base_leds_, rail_left_.start, rail_left_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
+  gaugeAnimation(base_leds_, rail_left_.start, rail_left_.end, telemetry.brake / 255.0f, telemetry.current_gear);
 
   if (lap_flash_active)
   {
