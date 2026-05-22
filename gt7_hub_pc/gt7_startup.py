@@ -81,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--auto-bind",
         action="store_true",
+        default=True,
         help="検出したESPとPS5のIPが分かり次第自動でバインドします。`--interactive-bind`より優先されます。",
     )
     return parser
@@ -119,11 +120,15 @@ def resolve_bindings(
     auto_bind: bool,
     console: StartupConsole,
 ) -> list[tuple[str, int]]:
+    # CLI で明示的な --bind 指定、または --interactive-bind 指定がある場合、自動バインドは無効化する
+    raw_bindings = flatten_cli_values(cli_binding_groups)
+    if raw_bindings or interactive_bind:
+        auto_bind = False
+
     # auto_bind が有効な場合は自動バインドに委ねる（明示指定のバインドは不要）
     if auto_bind:
         return []
 
-    raw_bindings = flatten_cli_values(cli_binding_groups)
     if interactive_bind:
         raw_bindings.extend(console.prompt_bindings())
     return parse_bindings(raw_bindings)
@@ -140,9 +145,12 @@ def load_runtime_config(
     ip_address = startup_console.prompt_ip_address(args.ip_address)
     if not ip_address:
         raise ValueError("IPアドレスが空です。")
+    # CLI で --bind が指定されている場合は自動バインドを無効化する
+    cli_bind_values = flatten_cli_values(args.binding_groups)
+    effective_auto_bind = args.auto_bind and not bool(cli_bind_values)
 
     bindings = resolve_bindings(
-        args.binding_groups, args.interactive_bind, args.auto_bind, startup_console
+        args.binding_groups, args.interactive_bind, effective_auto_bind, startup_console
     )
     output_path = args.output or default_output_path()
     esp_ports = flatten_cli_values(args.esp_ports)
@@ -154,5 +162,5 @@ def load_runtime_config(
         record_enabled=args.record,
         esp_ports=esp_ports,
         bindings=bindings,
-        auto_bind=args.auto_bind,
+        auto_bind=effective_auto_bind,
     )
