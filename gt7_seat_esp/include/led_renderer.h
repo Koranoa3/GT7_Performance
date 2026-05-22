@@ -34,15 +34,15 @@ private:
   CRGB arm_left_leds_[GT7_ARM_LEFT_LED_COUNT] = {};
   CRGB arm_right_leds_[GT7_ARM_RIGHT_LED_COUNT] = {};
 
-  Segment base_ripple_left_{base_leds_, 105, 3};
-  Segment base_ripple_right_{base_leds_, 199, 106};
-  Segment rail_right_{base_leds_, 3, 48};
+  Segment base_ripple_left_{base_leds_, 105, 1};
+  Segment base_ripple_right_{base_leds_, 203, 106};
+  Segment rail_right_{base_leds_, 1, 48};
   Segment base_right_{base_leds_, 105, 57};
   Segment base_left_{base_leds_, 106, 146};
-  Segment rail_left_{base_leds_, 199, 155};
+  Segment rail_left_{base_leds_, 203, 155};
 
-  Segment monitor_ripple_left_{monitor_leds_, 0, 69};
-  Segment monitor_ripple_right_{monitor_leds_, 70, 135};
+  Segment monitor_ripple_left_{monitor_leds_, 0, 67};
+  Segment monitor_ripple_right_{monitor_leds_, 68, 135};
   Segment monitor_left_{monitor_leds_,135, 102};
   Segment monitor_right_{monitor_leds_, 0, 33};
   Segment monitor_bottom_{monitor_leds_, 39, 96};
@@ -64,7 +64,7 @@ private:
   static CRGB gaugeColorForGear(int8_t current_gear);
   static void animatedGaugeFill(const Segment &segment, float value, const CRGB &base_color);
 
-  void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const;
+  void gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, const CRGB &color) const;
   void speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const;
   void rpmAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end) const;
   void whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end, float value) const;

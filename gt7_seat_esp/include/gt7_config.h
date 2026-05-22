@@ -71,7 +71,7 @@ constexpr uint8_t kFanIdleDuty = (1u << kFanPwmResolutionBits) - 1u;
 #endif
 
 #ifndef GT7_BASE_LED_COUNT
-#define GT7_BASE_LED_COUNT 200
+#define GT7_BASE_LED_COUNT 300
 #endif
 
 #ifndef GT7_MONITOR_LED_COUNT

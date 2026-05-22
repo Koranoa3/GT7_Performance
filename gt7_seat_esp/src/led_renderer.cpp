@@ -165,10 +165,10 @@ void LedRenderer::animatedGaugeFill(const Segment &segment, float value, const C
   }
 }
 
-void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, int8_t current_gear) const
+void LedRenderer::gaugeAnimation(CRGB leds[], uint16_t start, uint16_t end, float value, const CRGB &color) const
 {
   const Segment segment{leds, start, end};
-  animatedGaugeFill(segment, value, gaugeColorForGear(current_gear));
+  animatedGaugeFill(segment, value, color);
 }
 
 void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], uint16_t start, uint16_t end, float value) const
@@ -190,7 +190,10 @@ void LedRenderer::speedAnimation(const TelemetryState &telemetry, CRGB leds[], u
     x = x - floorf(x);
     const float wave = 1.0f - fabsf((x * 2.0f) - 1.0f);
     const uint8_t brightness = static_cast<uint8_t>((wave * wave) * base_brightness);
-    segment.leds[segmentIndex(segment, i)] = CRGB(0, brightness / 2, brightness);
+    const CRGB base_color = gaugeColorForGear(telemetry.current_gear);
+    CRGB color = base_color;
+    color.nscale8_video(brightness);
+    segment.leds[segmentIndex(segment, i)] = color;
   }
 }
 
@@ -220,7 +223,7 @@ void LedRenderer::whiteRippleAnimation(CRGB leds[], uint16_t start, uint16_t end
 {
   const Segment segment{leds, start, end};
   const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
-  const float next = constrain(raw * raw, 0.0f, 1.0f);
+  const float next = constrain(raw, 0.0f, 1.0f);
   if (next < value)
   {
     fillRatioRange(segment, value, 1.0f, CRGB::White);
@@ -267,7 +270,7 @@ void LedRenderer::renderIdle()
   whiteRippleAnimation(arm_right_.leds, arm_right_.start, arm_right_.end, idle_ripple_prev_);
 
   const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
-  idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
+  idle_ripple_prev_ = constrain(raw, 0.0f, 1.0f);
 }
 
 bool LedRenderer::renderPreview(uint32_t now)
@@ -321,14 +324,14 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
 
   speedAnimation(telemetry, base_leds_, base_left_.start, base_left_.end, speed_mileage_);
   speedAnimation(telemetry, base_leds_, base_right_.start, base_right_.end, speed_mileage_);
-  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start+segmentLength(monitor_bottom_)/2, monitor_bottom_.start, speed_mileage_);
-  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.end-segmentLength(monitor_bottom_)/2, monitor_bottom_.end, speed_mileage_);
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start+segmentLength(monitor_bottom_)/2-1, monitor_bottom_.start, speed_mileage_);
+  speedAnimation(telemetry, monitor_leds_, monitor_bottom_.end-segmentLength(monitor_bottom_)/2-1, monitor_bottom_.end, speed_mileage_);
   speedAnimation(telemetry, base_leds_, rail_right_.start, rail_right_.end, speed_mileage_);
   speedAnimation(telemetry, base_leds_, rail_left_.start, rail_left_.end, speed_mileage_);
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
-  gaugeAnimation(arm_left_leds_, arm_left_.start, arm_left_.end, telemetry.brake / 255.0f, telemetry.current_gear);
-  gaugeAnimation(arm_right_leds_, arm_right_.start, arm_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
+  gaugeAnimation(arm_right_leds_, arm_right_.start, arm_right_.end, telemetry.throttle / 255.0f, CRGB::Aquamarine);
+  gaugeAnimation(arm_left_leds_, arm_left_.start, arm_left_.end, telemetry.brake / 255.0f, CRGB::OrangeRed);
 
   if (lap_flash_active)
   {
@@ -336,7 +339,7 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
   }
   if (collision_active)
   {
-    collisionBlinkAnimation(base_leds_, 0, GT7_BASE_LED_COUNT, collision_elapsed_ms);
+    collisionBlinkAnimation(base_leds_, base_ripple_right_.start, base_ripple_left_.end, collision_elapsed_ms);
     collisionBlinkAnimation(monitor_leds_, monitor_bottom_.start, monitor_bottom_.end, collision_elapsed_ms);
   }
 }
