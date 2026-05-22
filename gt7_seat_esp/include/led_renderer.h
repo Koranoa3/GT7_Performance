@@ -31,6 +31,8 @@ private:
 
   CRGB base_leds_[GT7_BASE_LED_COUNT] = {};
   CRGB monitor_leds_[GT7_MONITOR_LED_COUNT] = {};
+  CRGB arm_left_leds_[GT7_ARM_LEFT_LED_COUNT] = {};
+  CRGB arm_right_leds_[GT7_ARM_RIGHT_LED_COUNT] = {};
 
   Segment base_ripple_left_{base_leds_, 105, 3};
   Segment base_ripple_right_{base_leds_, 199, 106};
@@ -44,6 +46,8 @@ private:
   Segment monitor_left_{monitor_leds_,135, 102};
   Segment monitor_right_{monitor_leds_, 0, 33};
   Segment monitor_bottom_{monitor_leds_, 39, 96};
+  Segment arm_left_{arm_left_leds_, 3, 22};
+  Segment arm_right_{arm_right_leds_, 2, 21};
 
   uint32_t last_led_render_ms_ = 0;
   uint32_t last_animation_ms_ = 0;

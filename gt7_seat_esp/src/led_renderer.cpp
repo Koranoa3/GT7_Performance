@@ -91,6 +91,8 @@ void LedRenderer::setup()
 {
   FastLED.addLeds<GT7_LED_TYPE, GT7_BASE_LED_PIN, GT7_COLOR_ORDER>(base_leds_, GT7_BASE_LED_COUNT);
   FastLED.addLeds<GT7_LED_TYPE, GT7_MONITOR_LED_PIN, GT7_COLOR_ORDER>(monitor_leds_, GT7_MONITOR_LED_COUNT);
+  FastLED.addLeds<GT7_LED_TYPE, GT7_ARM_LEFT_LED_PIN, GT7_COLOR_ORDER>(arm_left_leds_, GT7_ARM_LEFT_LED_COUNT);
+  FastLED.addLeds<GT7_LED_TYPE, GT7_ARM_RIGHT_LED_PIN, GT7_COLOR_ORDER>(arm_right_leds_, GT7_ARM_RIGHT_LED_COUNT);
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.clear(true);
 }
@@ -245,6 +247,8 @@ void LedRenderer::renderSleep()
 {
   fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
   fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
+  fill_solid(arm_left_leds_, GT7_ARM_LEFT_LED_COUNT, CRGB::Black);
+  fill_solid(arm_right_leds_, GT7_ARM_RIGHT_LED_COUNT, CRGB::Black);
   idle_ripple_prev_ = 0.0f;
 }
 
@@ -252,11 +256,15 @@ void LedRenderer::renderIdle()
 {
   fadeToBlackBy(base_leds_, GT7_BASE_LED_COUNT, 80);
   fadeToBlackBy(monitor_leds_, GT7_MONITOR_LED_COUNT, 80);
+  fadeToBlackBy(arm_left_leds_, GT7_ARM_LEFT_LED_COUNT, 80);
+  fadeToBlackBy(arm_right_leds_, GT7_ARM_RIGHT_LED_COUNT, 80);
 
   whiteRippleAnimation(base_ripple_left_.leds, base_ripple_left_.start, base_ripple_left_.end, idle_ripple_prev_);
   whiteRippleAnimation(base_ripple_right_.leds, base_ripple_right_.end, base_ripple_right_.start, idle_ripple_prev_);
   whiteRippleAnimation(monitor_ripple_left_.leds, monitor_ripple_left_.end, monitor_ripple_left_.start, idle_ripple_prev_);
   whiteRippleAnimation(monitor_ripple_right_.leds, monitor_ripple_right_.start, monitor_ripple_right_.end, idle_ripple_prev_);
+  whiteRippleAnimation(arm_left_.leds, arm_left_.start, arm_left_.end, idle_ripple_prev_);
+  whiteRippleAnimation(arm_right_.leds, arm_right_.start, arm_right_.end, idle_ripple_prev_);
 
   const float raw = (static_cast<float>(millis() % 2000)) / 2000.0f;
   idle_ripple_prev_ = constrain(raw * raw, 0.0f, 1.0f);
@@ -276,6 +284,8 @@ bool LedRenderer::renderPreview(uint32_t now)
 
   fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
   fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
+  fill_solid(arm_left_leds_, GT7_ARM_LEFT_LED_COUNT, CRGB::Black);
+  fill_solid(arm_right_leds_, GT7_ARM_RIGHT_LED_COUNT, CRGB::Black);
 
   CRGB *target_leds = preview_.strip_id == LedStripMonitor ? monitor_leds_ : base_leds_;
   const uint16_t target_count = preview_.strip_id == LedStripMonitor ? GT7_MONITOR_LED_COUNT : GT7_BASE_LED_COUNT;
@@ -306,15 +316,19 @@ void LedRenderer::renderRace(const TelemetryState &telemetry,
 {
   fill_solid(base_leds_, GT7_BASE_LED_COUNT, CRGB::Black);
   fill_solid(monitor_leds_, GT7_MONITOR_LED_COUNT, CRGB::Black);
+  fill_solid(arm_left_leds_, GT7_ARM_LEFT_LED_COUNT, CRGB::Black);
+  fill_solid(arm_right_leds_, GT7_ARM_RIGHT_LED_COUNT, CRGB::Black);
 
   speedAnimation(telemetry, base_leds_, base_left_.start, base_left_.end, speed_mileage_);
-  speedAnimation(telemetry, base_leds_, base_right_.start, base_right_.end, speed_mileage_);;
+  speedAnimation(telemetry, base_leds_, base_right_.start, base_right_.end, speed_mileage_);
   speedAnimation(telemetry, monitor_leds_, monitor_bottom_.start+segmentLength(monitor_bottom_)/2, monitor_bottom_.start, speed_mileage_);
   speedAnimation(telemetry, monitor_leds_, monitor_bottom_.end-segmentLength(monitor_bottom_)/2, monitor_bottom_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, rail_right_.start, rail_right_.end, speed_mileage_);
+  speedAnimation(telemetry, base_leds_, rail_left_.start, rail_left_.end, speed_mileage_);
   rpmAnimation(telemetry, monitor_leds_, monitor_left_.start, monitor_left_.end);
   rpmAnimation(telemetry, monitor_leds_, monitor_right_.start, monitor_right_.end);
-  gaugeAnimation(base_leds_, rail_right_.start, rail_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
-  gaugeAnimation(base_leds_, rail_left_.start, rail_left_.end, telemetry.brake / 255.0f, telemetry.current_gear);
+  gaugeAnimation(arm_left_leds_, arm_left_.start, arm_left_.end, telemetry.brake / 255.0f, telemetry.current_gear);
+  gaugeAnimation(arm_right_leds_, arm_right_.start, arm_right_.end, telemetry.throttle / 255.0f, telemetry.current_gear);
 
   if (lap_flash_active)
   {
