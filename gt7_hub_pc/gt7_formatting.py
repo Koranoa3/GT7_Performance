@@ -420,6 +420,7 @@ TELEMETRY_LAYOUT = TelemetryLayout(
         field("last_lap_time", packet_attr("last_lap_time"), esp_default=-1),
         field("paused", packet_attr("flags", "paused"), CSV_TARGET, CONSOLE_TARGET),
         field("car_on_track", packet_attr("flags", "car_on_track"), CSV_TARGET, CONSOLE_TARGET),
+        field("fan_speed_multiplier", generated_value(lambda: 1.0), ESP_TARGET, digits=3, esp_default=1.0),
         field("play_state", generated_value(lambda: 0), ESP_TARGET, digits=0, esp_default=0),
     ]
 )

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
+from gt7_app_config import load_app_config
 from gt7_console import StartupConsole
 
 
@@ -15,6 +16,7 @@ class RuntimeLaunchConfig:
     log_trace_path: Optional[Path]
     output_path: Path
     record_enabled: bool
+    fan_speed_multiplier: float
     esp_ports: list[str]
     bindings: list[tuple[str, int]]
     auto_bind: bool
@@ -141,6 +143,7 @@ def load_runtime_config(
     startup_console = console or StartupConsole()
     parser = build_parser()
     args = parser.parse_args(argv)
+    app_config = load_app_config()
 
     ip_address = startup_console.prompt_ip_address(args.ip_address)
     if not ip_address:
@@ -160,6 +163,7 @@ def load_runtime_config(
         log_trace_path=args.trace,
         output_path=output_path,
         record_enabled=args.record,
+        fan_speed_multiplier=app_config.fan_speed_multiplier,
         esp_ports=esp_ports,
         bindings=bindings,
         auto_bind=effective_auto_bind,

@@ -397,6 +397,7 @@ class EspTelemetryDirector:
 def run(config: RuntimeLaunchConfig) -> int:
     console = LiveConsole()
     console.log(f"接続先PS5: {config.ip_address}")
+    console.log(f"設定 FAN_SPEED_MULTIPLIER: {config.fan_speed_multiplier:.3f}")
     if config.trace_mode:
         console.log("トレース再生モード: CSV出力は行いません。")
     elif config.record_enabled:
@@ -491,7 +492,10 @@ def run(config: RuntimeLaunchConfig) -> int:
                     rows_written += 1
                 console.status_from_snapshot(snapshot)
                 events = esp_director.update(snapshot, now)
-                esp_snapshot = snapshot.with_values(play_state=esp_director.play_state)
+                esp_snapshot = snapshot.with_values(
+                    play_state=esp_director.play_state,
+                    fan_speed_multiplier=config.fan_speed_multiplier,
+                )
                 if esp_manager_running:
                     for event_id, value in events:
                         esp_manager.submit_event(config.ip_address, event_id, value)

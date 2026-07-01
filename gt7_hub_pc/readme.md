@@ -45,6 +45,8 @@ python main.py 192.168.0.10 --esp-port COM3 --bind 192.168.0.10:1
 - ESP 側は `PING` を送って自分の `ESP_ID` を知らせ、PC 側は `PONG` と `BIND` を返します
 - 連続データは 20Hz 上限で送信されます
 
+リポジトリ直下の `config.ini` も起動時に読み込みます。現在は `FAN_SPEED_MULTIPLIER` を使って、ESP に送るファン制御係数を設定できます。
+
 ## 構成
 
 - `main.py`: 起動用の薄いエントリポイント
