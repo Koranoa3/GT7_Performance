@@ -162,7 +162,8 @@ void SeatController::handleTelemetry(const Frame &frame)
   telemetry_state_.brake = payload[17];
   telemetry_state_.current_gear = static_cast<int8_t>(payload[18]);
   telemetry_state_.velocity_right = read_f32(19);
-  telemetry_state_.play_state = payload[23] == PlayRace ? PlayRace : PlayIdle;
+  telemetry_state_.fan_speed_multiplier = read_f32(23);
+  telemetry_state_.play_state = payload[27] == PlayRace ? PlayRace : PlayIdle;
 
   hardware_.updateActuators(telemetry_state_, true);
 }

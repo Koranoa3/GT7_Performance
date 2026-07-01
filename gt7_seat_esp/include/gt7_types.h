@@ -53,6 +53,7 @@ struct TelemetryState
   uint8_t brake = 0;
   int8_t current_gear = -1;
   float velocity_right = 0.0f;
+  float fan_speed_multiplier = 1.0f;
   uint8_t play_state = PlayIdle;
 };
 

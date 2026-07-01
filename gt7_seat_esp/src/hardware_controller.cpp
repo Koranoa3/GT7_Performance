@@ -56,7 +56,9 @@ void HardwareController::updateActuators(const TelemetryState &telemetry, bool t
   if (telemetry.play_state == PlayRace)
   {
     const float speed_ratio = constrain((telemetry.car_speed - 20) / config::kSpeedFullScaleMps, 0.0f, 1.0f);
-    const uint8_t pwm_duty = static_cast<uint8_t>((1.0f - speed_ratio) * config::kFanPwmMaxDuty + 0.5f);
+    const float fan_speed_multiplier = telemetry.fan_speed_multiplier < 0.0f ? 0.0f : telemetry.fan_speed_multiplier;
+    const float fan_speed_ratio = constrain(speed_ratio * fan_speed_multiplier, 0.0f, 1.0f);
+    const uint8_t pwm_duty = static_cast<uint8_t>((1.0f - fan_speed_ratio) * config::kFanPwmMaxDuty + 0.5f);
     ledcWrite(config::kFanPwmChannel, pwm_duty);
     const bool lateral_vibration_active = fabsf(telemetry.velocity_right) > 15.0f;
     digitalWrite(GT7_VIBRATION_PIN, (collision_vibration_active || lateral_vibration_active) ? HIGH : LOW);

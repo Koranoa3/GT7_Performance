@@ -25,7 +25,7 @@ constexpr uint32_t kLapFlashDurationMs = 600;
 
 constexpr size_t kMaxPayloadSize = 96;
 constexpr size_t kMaxFrameSize = 128;
-constexpr size_t kTelemetryPayloadSize = 24;
+constexpr size_t kTelemetryPayloadSize = 28;
 constexpr size_t kSectionPreviewPayloadSize = 5;
 
 constexpr float kSpeedFullScaleMps = 50.0f;

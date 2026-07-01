@@ -19,7 +19,7 @@ class FrameType(IntEnum):
 MAGIC = b"G7"
 VERSION = 1
 HEADER = struct.Struct("<2sBBBBHHH")
-TELEMETRY = struct.Struct("<ffffBBbfB")
+TELEMETRY = struct.Struct("<ffffBBbffB")
 EVENT = struct.Struct("<BB")
 SECTION_PREVIEW = struct.Struct("<BHH")
 
@@ -90,6 +90,7 @@ def build_telemetry_payload(values: Mapping[str, Any]) -> bytes:
         _int(values, "brake"),
         _int(values, "current_gear", -1),
         _float(values, "velocity_right"),
+        _float(values, "fan_speed_multiplier", 1.0),
         _int(values, "play_state"),
     )
 
