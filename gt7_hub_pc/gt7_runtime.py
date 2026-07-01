@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 from collections import deque
+import math
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
@@ -11,7 +12,7 @@ from granturismo.intake import Listener, ReadError, SocketNotBoundError
 
 from gt7_console import LiveConsole
 from gt7_esp_bridge import EspSerialManager
-from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot, TelemetryWarning
+from gt7_formatting import TELEMETRY_LAYOUT, TelemetrySnapshot, TelemetryWarning, clamp_car_speed
 from gt7_log_trace import LogTraceListener
 from gt7_protocol import (
     EVENT_COLLISION,
@@ -398,6 +399,10 @@ def run(config: RuntimeLaunchConfig) -> int:
     console = LiveConsole()
     console.log(f"接続先PS5: {config.ip_address}")
     console.log(f"設定 FAN_SPEED_MULTIPLIER: {config.fan_speed_multiplier:.3f}")
+    if math.isfinite(config.max_car_speed):
+        console.log(f"設定 MAX_CAR_SPEED: {config.max_car_speed:.3f} m/s")
+    else:
+        console.log("設定 MAX_CAR_SPEED: 制限なし")
     if config.trace_mode:
         console.log("トレース再生モード: CSV出力は行いません。")
     elif config.record_enabled:
@@ -485,7 +490,10 @@ def run(config: RuntimeLaunchConfig) -> int:
                     time.sleep(0.001)
                     continue
 
-                snapshot = TELEMETRY_LAYOUT.resolve_packet(packet)
+                snapshot = clamp_car_speed(
+                    TELEMETRY_LAYOUT.resolve_packet(packet),
+                    config.max_car_speed,
+                )
                 log_snapshot_warnings(console, snapshot.warnings, warning_keys)
                 sink.write_snapshot(snapshot)
                 if config.record_enabled and not config.trace_mode:

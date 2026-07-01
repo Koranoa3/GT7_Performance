@@ -150,6 +150,17 @@ class TelemetrySnapshot:
         return TelemetrySnapshot(values=values, warnings=self.warnings)
 
 
+def clamp_car_speed(snapshot: TelemetrySnapshot, max_car_speed: float) -> TelemetrySnapshot:
+    if not math.isfinite(max_car_speed) or not snapshot.has("car_speed"):
+        return snapshot
+
+    car_speed = snapshot.get("car_speed")
+    if car_speed is None:
+        return snapshot
+
+    return snapshot.with_values(car_speed=min(float(car_speed), max_car_speed))
+
+
 class TelemetryResolveContext:
     def __init__(self, packet: Any, fields_by_name: dict[str, TelemetryFieldDefinition]) -> None:
         self.packet = packet

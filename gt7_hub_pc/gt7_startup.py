@@ -17,6 +17,7 @@ class RuntimeLaunchConfig:
     output_path: Path
     record_enabled: bool
     fan_speed_multiplier: float
+    max_car_speed: float
     esp_ports: list[str]
     bindings: list[tuple[str, int]]
     auto_bind: bool
@@ -164,6 +165,7 @@ def load_runtime_config(
         output_path=output_path,
         record_enabled=args.record,
         fan_speed_multiplier=app_config.fan_speed_multiplier,
+        max_car_speed=app_config.max_car_speed,
         esp_ports=esp_ports,
         bindings=bindings,
         auto_bind=effective_auto_bind,
