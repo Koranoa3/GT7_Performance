@@ -357,7 +357,7 @@ class EspTelemetryDirector:
             self._scale_collision_strength(speed_delta, 5.0) if speed_delta > 0.0 else 0,
         )
 
-        if strength <= 0:
+        if strength <= 20:
             return None
 
         self._last_collision_at = now
